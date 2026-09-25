@@ -17,5 +17,7 @@
       "database_id": "cda3b64a-469f-47d0-9263-599482c62cec"
     }
   ],
+  // Keep variables set in the dashboard (such as BASE_PATH) across deploys.
+  "keep_vars": true,
   "observability": { "enabled": true }
 }
