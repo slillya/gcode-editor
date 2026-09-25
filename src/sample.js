@@ -1,6 +1,7 @@
 /*!
  * FeedFix sample program: a demo plate job written the way CAM output looks
  * when rapids are replaced by G1 moves at each operation's cutting feed.
+ * make({ inch: true }) writes the same job in inches (G20) with inch feeds.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -8,32 +9,45 @@
 }(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  function makeSample() {
+  // Geometry below is laid out in millimetres. The inch job scales it by 1/25,
+  // which gives tidy inch sizes (a 4.8 x 3.2 in plate, 0.6 in clearance).
+  var FEEDS = {
+    mm: { face: 1500, facePlunge: 500, pocket: 1200, ramp: 400, contour: 1000, contourPlunge: 300, drill: 250 },
+    inch: { face: 60, facePlunge: 20, pocket: 48, ramp: 16, contour: 40, contourPlunge: 12, drill: 10 }
+  };
+
+  function makeSample(opts) {
+    var inch = !!(opts && opts.inch);
+    var S = inch ? 1 / 25 : 1, DEC = inch ? 4 : 3, P10 = Math.pow(10, DEC);
+    var FD = inch ? FEEDS.inch : FEEDS.mm;
     var out = [];
     var st = { x: NaN, y: NaN, z: NaN, f: NaN };
-    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function rd(v) { return Math.round(v * P10) / P10; }
     function num(v) {
-      var s = r3(v).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+      var s = rd(v).toFixed(DEC).replace(/0+$/, '').replace(/\.$/, '');
       return s === '-0' ? '0' : s;
     }
     function emit(s) { out.push(s); }
+    // Adds an axis word when the (scaled) value differs from the modal one.
+    function axis(letter, key, v) {
+      if (v === undefined) return '';
+      var w = rd(v * S);
+      if (w === st[key]) return '';
+      st[key] = w;
+      return ' ' + letter + num(w);
+    }
+    function feed(f) {
+      if (f === undefined || rd(f) === st.f) return '';
+      st.f = rd(f);
+      return ' F' + num(f);
+    }
     function g1(x, y, z, f) {
-      var s = 'G1';
-      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
-      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
-      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
-      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
+      var s = 'G1' + axis('X', 'x', x) + axis('Y', 'y', y) + axis('Z', 'z', z) + feed(f);
       if (s !== 'G1') emit(s);
     }
     // i, j: arc centre relative to the start point
     function arc(g, x, y, z, i, j, f) {
-      var s = g;
-      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
-      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
-      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
-      s += ' I' + num(i) + ' J' + num(j);
-      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
-      emit(s);
+      emit(g + axis('X', 'x', x) + axis('Y', 'y', y) + axis('Z', 'z', z) + ' I' + num(i * S) + ' J' + num(j * S) + feed(f));
     }
 
     var CLEAR = 15, RETRACT = 5, FEEDH = 2;
@@ -41,12 +55,12 @@
 
     emit('%');
     emit('(DEMO FILE - NOT FOR MACHINING)');
-    emit('(MOTOR PLATE 120 X 80 X 12 - Z0 AT STOCK TOP)');
+    emit(inch ? '(MOTOR PLATE 4.8 X 3.2 X 0.48 IN - Z0 AT STOCK TOP)' : '(MOTOR PLATE 120 X 80 X 12 MM - Z0 AT STOCK TOP)');
     emit('(RAPIDS IN THIS FILE WERE WRITTEN AS G1 AT EACH CUTTING FEED)');
-    emit('(T1 D=6 CR=0 - ZMIN=-12.5 - FLAT END MILL)');
+    emit(inch ? '(T1 D=0.24 CR=0 - ZMIN=-0.5 - FLAT END MILL)' : '(T1 D=6 CR=0 - ZMIN=-12.5 - FLAT END MILL)');
     emit('G90 G94');
     emit('G17');
-    emit('G21');
+    emit(inch ? 'G20' : 'G21');
 
     // Facing: zigzag at Z-0.5, entering from outside the stock
     emit('');
@@ -54,7 +68,7 @@
     emit('T1');
     emit('S16000 M3');
     emit('G54');
-    var FF = 1500, FP = 500;
+    var FF = FD.face, FP = FD.facePlunge;
     g1(-8, -1, undefined, FF);
     g1(undefined, undefined, CLEAR);
     g1(undefined, undefined, RETRACT);
@@ -69,7 +83,7 @@
     // Pocket: helical entry, offset loops from the inside out, three depths
     emit('');
     emit('(POCKET1)');
-    var PF = 1200, PR = 400, hr = 1.5;
+    var PF = FD.pocket, PR = FD.ramp, hr = 1.5;
     var depths = [-2, -4, -6];
     g1(cx + hr, cy, undefined, PF);
     g1(undefined, undefined, RETRACT);
@@ -108,7 +122,7 @@
     // Outside contour: arc lead-in and lead-out, three depths, tabs on the last pass
     emit('');
     emit('(CONTOUR1)');
-    var CF = 1000, CP = 300;
+    var CF = FD.contour, CP = FD.contourPlunge;
     var chw = 58, chh = 38, cr = 9, lx = cx + chw + 3;
     var cdepths = [-4, -8, -12.5];
     g1(lx, cy + 3, undefined, CF);
@@ -143,7 +157,7 @@
     // Peck drilling written out as G1 moves (no canned cycle)
     emit('');
     emit('(DRILL1)');
-    var DF = 250, Q = 4, bottom = -12.5;
+    var DF = FD.drill, Q = 4, bottom = -12.5;
     var holes = [[15, 15], [105, 15], [105, 65], [15, 65]];
     for (var h = 0; h < holes.length; h++) {
       g1(holes[h][0], holes[h][1], undefined, DF);

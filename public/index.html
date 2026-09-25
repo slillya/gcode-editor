@@ -602,8 +602,10 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   border: 1px solid var(--rule-2);
 }
 .fp-cur, .fp-new { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.fp-cur .v { font-size: 14px; font-weight: 500; color: var(--p-air); display: flex; flex-wrap: wrap; gap: 0 8px; }
+.fp-cur .v { font-size: 14px; font-weight: 500; color: var(--p-air); display: flex; flex-wrap: wrap; gap: 0 6px; }
 .fp-cur .v span { white-space: nowrap; }
+.fp-cur .v .fu-inline { color: var(--ink-3); font-weight: 400; font-size: 12px; align-self: center; }
+.fp-cur .v .sep { color: var(--ink-3); font-weight: 400; }
 .arrow { width: 22px; height: 14px; fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
 
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
@@ -693,6 +695,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   white-space: nowrap;
 }
 .menu button:hover, .menu button:focus-visible { background: var(--row-hover); outline: none; }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--rule-2); }
 
 .dlg {
   width: min(580px, calc(100vw - 32px));
@@ -857,6 +860,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
           <button type="button" role="menuitem" data-act="how">How it works</button>
           <button type="button" role="menuitem" data-act="bug">Report a bug</button>
           <button type="button" role="menuitem" data-act="feature">Request a feature</button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" role="menuitem" data-act="units" id="unitsItem">Change to metric</button>
         </div>
       </div>
       <button class="btn" id="sampleBtn" type="button" hidden>Load sample</button>
@@ -980,7 +985,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 
       <section class="panel card" aria-labelledby="feedsH">
         <h2 class="card-title" id="feedsH">Programmed feeds</h2>
-        <p class="lede">Change any feed in the program by value. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
+        <p class="lede">Change any feed in the program by value, in the file's own units. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
         <div class="table-wrap">
           <table class="feeds">
             <thead><tr><th scope="col">Current</th><th scope="col">Used by</th><th scope="col">New</th></tr></thead>
@@ -1070,6 +1075,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
       <p>FeedFix finds the lowest retract or approach height that sits above every cutting move and shows it as a plane in the 3D view. If the stock is taller than the program expects, set it by hand to just above the top of your stock.</p>
       <h3>The check</h3>
       <p>Before every download the edited file is read back and compared move by move with the original. If any coordinate, arc or line differs, or any byte other than an F number changed, the download is blocked.</p>
+      <h3>Units</h3>
+      <p>FeedFix shows inches and in/min unless you pick Help → Change to metric. That only changes what you see. Your program keeps its own units (G20 or G21), and a new feed is converted to the file's units before it is written.</p>
       <h3>Before you run it</h3>
       <p>Dry-run or single-block the first run of an edited program and keep a hand on feed hold. Most controllers cap F at the machine's maximum feed, so a new feed above your machine's limit runs at the limit.</p>
       <h3>Mouse and touch</h3>
@@ -1275,7 +1282,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     var feedMode = 94, modalF = NaN, spindle = 0, retMode = 98;
     var px = NaN, py = NaN, pz = NaN, ox = 0, oy = 0, oz = 0;
     var cycR = NaN, cycZ = NaN, cycQ = NaN, cycInit = NaN;
-    var ended = false, pendingTool = NaN, epoch = 0, curWcs = 540;
+    var ended = false, pendingTool = NaN, epoch = 0, curWcs = 540, sawInch = false, sawMm = false;
 
     var warnings = [], warnIdx = {};
     function warn(code, line, text) {
@@ -1356,8 +1363,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
           case 730: case 810: case 820: case 830: case 840: case 850:
           case 860: case 870: case 880: case 890: newCycle = g; break;
           case 170: case 180: case 190: plane = g / 10; break;
-          case 200: units = 20; if (dispInch === undefined) dispInch = true; break;
-          case 210: units = 21; if (dispInch === undefined) dispInch = false; break;
+          case 200: units = 20; sawInch = true; if (dispInch === undefined) dispInch = true; break;
+          case 210: units = 21; sawMm = true; if (dispInch === undefined) dispInch = false; break;
           case 900: absMode = true; break;
           case 910: absMode = false; break;
           case 901: arcAbs = true; break;
@@ -1579,6 +1586,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
       lineSpace: lineSpace, lineMove: lineMove,
       moves: mv, arcs: arcs,
       inch: !!dispInch,
+      fileUnits: sawInch && sawMm ? 'mixed' : sawInch ? 'inch' : sawMm ? 'mm' : null,
       warnings: warnings, tools: tools, spindleMax: spindleMax,
       fStyle: dominantStyle(fStyles), fCount: fCount
     };
@@ -2089,6 +2097,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 /*!
  * FeedFix sample program: a demo plate job written the way CAM output looks
  * when rapids are replaced by G1 moves at each operation's cutting feed.
+ * make({ inch: true }) writes the same job in inches (G20) with inch feeds.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -2096,32 +2105,45 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  function makeSample() {
+  // Geometry below is laid out in millimetres. The inch job scales it by 1/25,
+  // which gives tidy inch sizes (a 4.8 x 3.2 in plate, 0.6 in clearance).
+  var FEEDS = {
+    mm: { face: 1500, facePlunge: 500, pocket: 1200, ramp: 400, contour: 1000, contourPlunge: 300, drill: 250 },
+    inch: { face: 60, facePlunge: 20, pocket: 48, ramp: 16, contour: 40, contourPlunge: 12, drill: 10 }
+  };
+
+  function makeSample(opts) {
+    var inch = !!(opts && opts.inch);
+    var S = inch ? 1 / 25 : 1, DEC = inch ? 4 : 3, P10 = Math.pow(10, DEC);
+    var FD = inch ? FEEDS.inch : FEEDS.mm;
     var out = [];
     var st = { x: NaN, y: NaN, z: NaN, f: NaN };
-    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function rd(v) { return Math.round(v * P10) / P10; }
     function num(v) {
-      var s = r3(v).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+      var s = rd(v).toFixed(DEC).replace(/0+$/, '').replace(/\.$/, '');
       return s === '-0' ? '0' : s;
     }
     function emit(s) { out.push(s); }
+    // Adds an axis word when the (scaled) value differs from the modal one.
+    function axis(letter, key, v) {
+      if (v === undefined) return '';
+      var w = rd(v * S);
+      if (w === st[key]) return '';
+      st[key] = w;
+      return ' ' + letter + num(w);
+    }
+    function feed(f) {
+      if (f === undefined || rd(f) === st.f) return '';
+      st.f = rd(f);
+      return ' F' + num(f);
+    }
     function g1(x, y, z, f) {
-      var s = 'G1';
-      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
-      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
-      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
-      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
+      var s = 'G1' + axis('X', 'x', x) + axis('Y', 'y', y) + axis('Z', 'z', z) + feed(f);
       if (s !== 'G1') emit(s);
     }
     // i, j: arc centre relative to the start point
     function arc(g, x, y, z, i, j, f) {
-      var s = g;
-      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
-      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
-      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
-      s += ' I' + num(i) + ' J' + num(j);
-      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
-      emit(s);
+      emit(g + axis('X', 'x', x) + axis('Y', 'y', y) + axis('Z', 'z', z) + ' I' + num(i * S) + ' J' + num(j * S) + feed(f));
     }
 
     var CLEAR = 15, RETRACT = 5, FEEDH = 2;
@@ -2129,12 +2151,12 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 
     emit('%');
     emit('(DEMO FILE - NOT FOR MACHINING)');
-    emit('(MOTOR PLATE 120 X 80 X 12 - Z0 AT STOCK TOP)');
+    emit(inch ? '(MOTOR PLATE 4.8 X 3.2 X 0.48 IN - Z0 AT STOCK TOP)' : '(MOTOR PLATE 120 X 80 X 12 MM - Z0 AT STOCK TOP)');
     emit('(RAPIDS IN THIS FILE WERE WRITTEN AS G1 AT EACH CUTTING FEED)');
-    emit('(T1 D=6 CR=0 - ZMIN=-12.5 - FLAT END MILL)');
+    emit(inch ? '(T1 D=0.24 CR=0 - ZMIN=-0.5 - FLAT END MILL)' : '(T1 D=6 CR=0 - ZMIN=-12.5 - FLAT END MILL)');
     emit('G90 G94');
     emit('G17');
-    emit('G21');
+    emit(inch ? 'G20' : 'G21');
 
     // Facing: zigzag at Z-0.5, entering from outside the stock
     emit('');
@@ -2142,7 +2164,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     emit('T1');
     emit('S16000 M3');
     emit('G54');
-    var FF = 1500, FP = 500;
+    var FF = FD.face, FP = FD.facePlunge;
     g1(-8, -1, undefined, FF);
     g1(undefined, undefined, CLEAR);
     g1(undefined, undefined, RETRACT);
@@ -2157,7 +2179,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     // Pocket: helical entry, offset loops from the inside out, three depths
     emit('');
     emit('(POCKET1)');
-    var PF = 1200, PR = 400, hr = 1.5;
+    var PF = FD.pocket, PR = FD.ramp, hr = 1.5;
     var depths = [-2, -4, -6];
     g1(cx + hr, cy, undefined, PF);
     g1(undefined, undefined, RETRACT);
@@ -2196,7 +2218,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     // Outside contour: arc lead-in and lead-out, three depths, tabs on the last pass
     emit('');
     emit('(CONTOUR1)');
-    var CF = 1000, CP = 300;
+    var CF = FD.contour, CP = FD.contourPlunge;
     var chw = 58, chh = 38, cr = 9, lx = cx + chw + 3;
     var cdepths = [-4, -8, -12.5];
     g1(lx, cy + 3, undefined, CF);
@@ -2231,7 +2253,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     // Peck drilling written out as G1 moves (no canned cycle)
     emit('');
     emit('(DRILL1)');
-    var DF = 250, Q = 4, bottom = -12.5;
+    var DF = FD.drill, Q = 4, bottom = -12.5;
     var holes = [[15, 15], [105, 15], [105, 65], [15, 65]];
     for (var h = 0; h < holes.length; h++) {
       g1(holes[h][0], holes[h][1], undefined, DF);
@@ -2834,8 +2856,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     safeZ: null, auto: null, incRetract: true, airFeed: 5000, maxRate: 5000, feedMap: {},
     plan: null, tA: null, tB: null, cumB: null, sum: null, editAt: null,
     curMove: -1, frac: 1, curLine: -1, playing: false, simT: 0, speed: 20,
-    decoder: null, verify: null, units: null
+    decoder: null, verify: null, metric: false
   };
+  try { S.metric = localStorage.getItem('feedfix.units') === 'metric'; } catch (e) { S.metric = false; }
 
   var viewer = new window.Backplot($('plot'), {
     labels: [$('axX'), $('axY'), $('axZ')],
@@ -2918,19 +2941,25 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     return bad > n * 0.01;
   }
 
-  function load(name, bytes, isSample) {
+  // keep: settings to carry over when the same file is re-read in other units.
+  function load(name, bytes, isSample, keep) {
     if (looksBinary(bytes)) { toast('That file is not plain-text G-code.', 'bad'); return; }
     stop();
     $('busy').hidden = false;
     setTimeout(function () {
       try {
-        var P = Core.parse(bytes);
+        var P = Core.parse(bytes, { inch: !S.metric });
         S.P = P; S.bytes = P.bytes; S.name = name; S.sample = !!isSample;
         S.curMove = -1; S.frac = 1; S.curLine = -1;
         S.segs = Core.buildSegments(P);
         S.auto = Core.detectSafeZ(P);
         S.safeZ = S.auto.z;
         S.feedMap = {};
+        if (keep) {
+          S.feedMap = keep.feedMap;
+          if (keep.safeZ === null) S.safeZ = keep.autoZ === null ? S.auto.z : null;
+          else if (keep.safeZ !== keep.autoZ) S.safeZ = Math.round(keep.safeZ * (P.inch ? 1 / 25.4 : 25.4) * 1e4) / 1e4;
+        }
         S.cls = null;
         var st = loadSettings(P.inch);
         S.airFeed = st.airFeed; S.maxRate = st.maxRate;
@@ -2965,7 +2994,28 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   }
 
   function loadSample() {
-    load(Sample.name, new TextEncoder().encode(Sample.make()), true);
+    load(Sample.name, new TextEncoder().encode(Sample.make({ inch: !S.metric })), true);
+  }
+
+  // Feeds in the file are in the file's units; this converts them for display.
+  function toDisplayFeed(value, fileInch) {
+    var k = (fileInch ? 1 : 0) === (S.P.inch ? 1 : 0) ? 1 : (fileInch ? 25.4 : 1 / 25.4);
+    var v = value * k;
+    return S.P.inch ? Math.round(v * 10) / 10 : Math.round(v);
+  }
+
+  function renderUnitsItem() {
+    $('unitsItem').textContent = S.metric ? 'Change to imperial' : 'Change to metric';
+  }
+
+  function setUnits(metric) {
+    S.metric = metric;
+    try { localStorage.setItem('feedfix.units', metric ? 'metric' : 'imperial'); } catch (e) { /* not remembered */ }
+    renderUnitsItem();
+    toast(metric ? 'Showing metric: mm and mm/min.' : 'Showing imperial: inches and in/min.');
+    if (!S.P) return;
+    if (S.sample) loadSample();
+    else load(S.name, S.bytes, false, { feedMap: S.feedMap, safeZ: S.safeZ, autoZ: S.auto ? S.auto.z : null });
   }
 
   // ---- analysis --------------------------------------------------------------
@@ -3058,16 +3108,16 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   function renderAir() {
     var P = S.P, mv = P.moves, cls = S.cls, feeds = {}, count = 0, len = 0, arcs = 0;
     for (var i = 0; i < mv.n; i++) {
-      if (!Core.isSpedUp(P, cls, i, S.incRetract) || (mv.flags[i] & Core.FLAG.SKIP)) continue;
+      if (!Core.isSpedUp(P, cls, i, S.incRetract) || (mv.flags[i] & Core.FLAG.SKIP) || mv.fmode[i] !== 94) continue;
       count++; len += mv.len[i];
       if (mv.arc[i] >= 0) arcs++;
       var f = mv.feed[i];
-      if (f === f) feeds[f] = 1;
+      if (f === f) feeds[toDisplayFeed(f, mv.inch[i])] = 1;
     }
     var list = Object.keys(feeds).map(Number).sort(function (x, y) { return x - y; });
     $('airPill').textContent = count.toLocaleString() + (count === 1 ? ' move' : ' moves');
-    $('airCur').innerHTML = list.length ? list.slice(0, 6).map(function (v) { return '<span>F' + num(v) + '</span>'; }).join('') +
-      (list.length > 6 ? '<span>+' + (list.length - 6) + ' more</span>' : '') : '—';
+    $('airCur').innerHTML = list.length ? list.slice(0, 6).map(function (v) { return '<span>' + num(v) + '</span>'; }).join(' <span class="sep">·</span> ') +
+      (list.length > 6 ? ' <span>+' + (list.length - 6) + ' more</span>' : '') + ' <span class="fu-inline">' + unitLen() + '/min</span>' : '—';
     $('airLen').textContent = count ? fmtLen(len) + ' of travel' : 'No air moves found';
 
     var hint, a = S.auto;
@@ -3099,10 +3149,13 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     body.innerHTML = feedRows.map(function (r, i) {
       var locked = r.mode === 93;
       return '<tr>' +
-        '<th scope="row"><span class="fv">F' + num(r.value) + '</span><span class="fu">' + feedUnit(r.mode, r.inch) + '</span></th>' +
+        '<th scope="row"><span class="fv">F' + num(r.value) + '</span><span class="fu">' + feedUnit(r.mode, r.inch) + '</span>' +
+        (r.mode === 94 && r.inch !== S.P.inch ? '<span class="fu">≈ ' + num(toDisplayFeed(r.value, r.inch)) + ' ' + unitLen() + '/min</span>' : '') + '</th>' +
         '<td class="use" id="use' + i + '"></td>' +
         '<td class="nf"><input type="number" min="0" step="any" inputmode="decimal" id="feedIn' + i + '" data-row="' + i + '"' +
-        ' placeholder="' + num(r.value) + '" aria-label="New feed for F' + num(r.value) + '"' + (locked ? ' disabled title="Inverse-time feeds are left as they are"' : '') + '></td>' +
+        ' placeholder="' + num(r.value) + '" aria-label="New feed for F' + num(r.value) + '"' +
+        (S.feedMap[r.key] > 0 ? ' value="' + num(S.feedMap[r.key]) + '"' : '') +
+        (locked ? ' disabled title="Inverse-time feeds are left as they are"' : '') + '></td>' +
         '</tr>';
     }).join('');
     renderFeedUsage();
@@ -3207,7 +3260,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
     var rows = [
       ['File', esc(S.name) + ' <span class="fine">' + (P.bytes.length / 1024).toFixed(1) + ' KB</span>'],
       ['Lines', P.lineCount.toLocaleString() + ' <span class="fine">' + P.moves.n.toLocaleString() + ' moves</span>'],
-      ['Units', P.inch ? 'Inch (G20)' : 'Millimetre (G21)'],
+      ['Units', ({ inch: 'Inch (G20)', mm: 'Millimetre (G21)', mixed: 'Mixed G20 and G21' }[P.fileUnits] || 'Not stated, read as mm') +
+        (P.fileUnits !== (P.inch ? 'inch' : 'mm') ? ' <span class="fine">shown in ' + (P.inch ? 'inches' : 'millimetres') + '</span>' : '')],
       ['X', rng(b.minX, b.maxX)], ['Y', rng(b.minY, b.maxY)], ['Z', rng(b.minZ, b.maxZ)],
       ['Tools', P.tools.length ? P.tools.map(function (t) { return 'T' + num(t.t); }).join(', ') : '—'],
       ['Spindle', P.spindleMax ? 'up to S' + num(P.spindleMax) : '—']
@@ -3554,12 +3608,16 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   document.addEventListener('click', function (e) {
     if (!helpMenu.hidden && !e.target.closest('.menu-wrap')) setMenu(false);
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !helpMenu.hidden) { setMenu(false); helpBtn.focus(); }
+  });
   helpMenu.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
     if (!b) return;
     setMenu(false);
     var act = b.getAttribute('data-act');
     if (act === 'how') openDialog($('howDlg'));
+    else if (act === 'units') setUnits(!S.metric);
     else openReport(act);
   });
 
@@ -3605,13 +3663,14 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
       page: location.origin + location.pathname,
       browser: navigator.userAgent,
       screen: window.innerWidth + 'x' + window.innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x',
-      webgl: !!viewer.ok
+      webgl: !!viewer.ok,
+      display: S.metric ? 'metric' : 'imperial'
     };
     if (P) {
       ctx.program = {
         name: S.sample ? 'sample (' + S.name + ')' : S.name,
         bytes: P.bytes.length, lines: P.lineCount, moves: P.moves.n,
-        units: P.inch ? 'inch' : 'mm',
+        units: P.fileUnits || 'not stated',
         notes: P.warnings.map(function (w) { return w.code + '@' + (w.line + 1); })
       };
       ctx.settings = {
@@ -3717,6 +3776,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   });
 
   window.addEventListener('resize', debounce(renderCode, 100));
+  renderUnitsItem();
   loadSample();
 }());
 </script>

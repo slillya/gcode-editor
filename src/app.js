@@ -28,8 +28,9 @@
     safeZ: null, auto: null, incRetract: true, airFeed: 5000, maxRate: 5000, feedMap: {},
     plan: null, tA: null, tB: null, cumB: null, sum: null, editAt: null,
     curMove: -1, frac: 1, curLine: -1, playing: false, simT: 0, speed: 20,
-    decoder: null, verify: null, units: null
+    decoder: null, verify: null, metric: false
   };
+  try { S.metric = localStorage.getItem('feedfix.units') === 'metric'; } catch (e) { S.metric = false; }
 
   var viewer = new window.Backplot($('plot'), {
     labels: [$('axX'), $('axY'), $('axZ')],
@@ -112,19 +113,25 @@
     return bad > n * 0.01;
   }
 
-  function load(name, bytes, isSample) {
+  // keep: settings to carry over when the same file is re-read in other units.
+  function load(name, bytes, isSample, keep) {
     if (looksBinary(bytes)) { toast('That file is not plain-text G-code.', 'bad'); return; }
     stop();
     $('busy').hidden = false;
     setTimeout(function () {
       try {
-        var P = Core.parse(bytes);
+        var P = Core.parse(bytes, { inch: !S.metric });
         S.P = P; S.bytes = P.bytes; S.name = name; S.sample = !!isSample;
         S.curMove = -1; S.frac = 1; S.curLine = -1;
         S.segs = Core.buildSegments(P);
         S.auto = Core.detectSafeZ(P);
         S.safeZ = S.auto.z;
         S.feedMap = {};
+        if (keep) {
+          S.feedMap = keep.feedMap;
+          if (keep.safeZ === null) S.safeZ = keep.autoZ === null ? S.auto.z : null;
+          else if (keep.safeZ !== keep.autoZ) S.safeZ = Math.round(keep.safeZ * (P.inch ? 1 / 25.4 : 25.4) * 1e4) / 1e4;
+        }
         S.cls = null;
         var st = loadSettings(P.inch);
         S.airFeed = st.airFeed; S.maxRate = st.maxRate;
@@ -159,7 +166,28 @@
   }
 
   function loadSample() {
-    load(Sample.name, new TextEncoder().encode(Sample.make()), true);
+    load(Sample.name, new TextEncoder().encode(Sample.make({ inch: !S.metric })), true);
+  }
+
+  // Feeds in the file are in the file's units; this converts them for display.
+  function toDisplayFeed(value, fileInch) {
+    var k = (fileInch ? 1 : 0) === (S.P.inch ? 1 : 0) ? 1 : (fileInch ? 25.4 : 1 / 25.4);
+    var v = value * k;
+    return S.P.inch ? Math.round(v * 10) / 10 : Math.round(v);
+  }
+
+  function renderUnitsItem() {
+    $('unitsItem').textContent = S.metric ? 'Change to imperial' : 'Change to metric';
+  }
+
+  function setUnits(metric) {
+    S.metric = metric;
+    try { localStorage.setItem('feedfix.units', metric ? 'metric' : 'imperial'); } catch (e) { /* not remembered */ }
+    renderUnitsItem();
+    toast(metric ? 'Showing metric: mm and mm/min.' : 'Showing imperial: inches and in/min.');
+    if (!S.P) return;
+    if (S.sample) loadSample();
+    else load(S.name, S.bytes, false, { feedMap: S.feedMap, safeZ: S.safeZ, autoZ: S.auto ? S.auto.z : null });
   }
 
   // ---- analysis --------------------------------------------------------------
@@ -252,16 +280,16 @@
   function renderAir() {
     var P = S.P, mv = P.moves, cls = S.cls, feeds = {}, count = 0, len = 0, arcs = 0;
     for (var i = 0; i < mv.n; i++) {
-      if (!Core.isSpedUp(P, cls, i, S.incRetract) || (mv.flags[i] & Core.FLAG.SKIP)) continue;
+      if (!Core.isSpedUp(P, cls, i, S.incRetract) || (mv.flags[i] & Core.FLAG.SKIP) || mv.fmode[i] !== 94) continue;
       count++; len += mv.len[i];
       if (mv.arc[i] >= 0) arcs++;
       var f = mv.feed[i];
-      if (f === f) feeds[f] = 1;
+      if (f === f) feeds[toDisplayFeed(f, mv.inch[i])] = 1;
     }
     var list = Object.keys(feeds).map(Number).sort(function (x, y) { return x - y; });
     $('airPill').textContent = count.toLocaleString() + (count === 1 ? ' move' : ' moves');
-    $('airCur').innerHTML = list.length ? list.slice(0, 6).map(function (v) { return '<span>F' + num(v) + '</span>'; }).join('') +
-      (list.length > 6 ? '<span>+' + (list.length - 6) + ' more</span>' : '') : '—';
+    $('airCur').innerHTML = list.length ? list.slice(0, 6).map(function (v) { return '<span>' + num(v) + '</span>'; }).join(' <span class="sep">·</span> ') +
+      (list.length > 6 ? ' <span>+' + (list.length - 6) + ' more</span>' : '') + ' <span class="fu-inline">' + unitLen() + '/min</span>' : '—';
     $('airLen').textContent = count ? fmtLen(len) + ' of travel' : 'No air moves found';
 
     var hint, a = S.auto;
@@ -293,10 +321,13 @@
     body.innerHTML = feedRows.map(function (r, i) {
       var locked = r.mode === 93;
       return '<tr>' +
-        '<th scope="row"><span class="fv">F' + num(r.value) + '</span><span class="fu">' + feedUnit(r.mode, r.inch) + '</span></th>' +
+        '<th scope="row"><span class="fv">F' + num(r.value) + '</span><span class="fu">' + feedUnit(r.mode, r.inch) + '</span>' +
+        (r.mode === 94 && r.inch !== S.P.inch ? '<span class="fu">≈ ' + num(toDisplayFeed(r.value, r.inch)) + ' ' + unitLen() + '/min</span>' : '') + '</th>' +
         '<td class="use" id="use' + i + '"></td>' +
         '<td class="nf"><input type="number" min="0" step="any" inputmode="decimal" id="feedIn' + i + '" data-row="' + i + '"' +
-        ' placeholder="' + num(r.value) + '" aria-label="New feed for F' + num(r.value) + '"' + (locked ? ' disabled title="Inverse-time feeds are left as they are"' : '') + '></td>' +
+        ' placeholder="' + num(r.value) + '" aria-label="New feed for F' + num(r.value) + '"' +
+        (S.feedMap[r.key] > 0 ? ' value="' + num(S.feedMap[r.key]) + '"' : '') +
+        (locked ? ' disabled title="Inverse-time feeds are left as they are"' : '') + '></td>' +
         '</tr>';
     }).join('');
     renderFeedUsage();
@@ -401,7 +432,8 @@
     var rows = [
       ['File', esc(S.name) + ' <span class="fine">' + (P.bytes.length / 1024).toFixed(1) + ' KB</span>'],
       ['Lines', P.lineCount.toLocaleString() + ' <span class="fine">' + P.moves.n.toLocaleString() + ' moves</span>'],
-      ['Units', P.inch ? 'Inch (G20)' : 'Millimetre (G21)'],
+      ['Units', ({ inch: 'Inch (G20)', mm: 'Millimetre (G21)', mixed: 'Mixed G20 and G21' }[P.fileUnits] || 'Not stated, read as mm') +
+        (P.fileUnits !== (P.inch ? 'inch' : 'mm') ? ' <span class="fine">shown in ' + (P.inch ? 'inches' : 'millimetres') + '</span>' : '')],
       ['X', rng(b.minX, b.maxX)], ['Y', rng(b.minY, b.maxY)], ['Z', rng(b.minZ, b.maxZ)],
       ['Tools', P.tools.length ? P.tools.map(function (t) { return 'T' + num(t.t); }).join(', ') : '—'],
       ['Spindle', P.spindleMax ? 'up to S' + num(P.spindleMax) : '—']
@@ -748,12 +780,16 @@
   document.addEventListener('click', function (e) {
     if (!helpMenu.hidden && !e.target.closest('.menu-wrap')) setMenu(false);
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !helpMenu.hidden) { setMenu(false); helpBtn.focus(); }
+  });
   helpMenu.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
     if (!b) return;
     setMenu(false);
     var act = b.getAttribute('data-act');
     if (act === 'how') openDialog($('howDlg'));
+    else if (act === 'units') setUnits(!S.metric);
     else openReport(act);
   });
 
@@ -799,13 +835,14 @@
       page: location.origin + location.pathname,
       browser: navigator.userAgent,
       screen: window.innerWidth + 'x' + window.innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x',
-      webgl: !!viewer.ok
+      webgl: !!viewer.ok,
+      display: S.metric ? 'metric' : 'imperial'
     };
     if (P) {
       ctx.program = {
         name: S.sample ? 'sample (' + S.name + ')' : S.name,
         bytes: P.bytes.length, lines: P.lineCount, moves: P.moves.n,
-        units: P.inch ? 'inch' : 'mm',
+        units: P.fileUnits || 'not stated',
         notes: P.warnings.map(function (w) { return w.code + '@' + (w.line + 1); })
       };
       ctx.settings = {
@@ -911,5 +948,6 @@
   });
 
   window.addEventListener('resize', debounce(renderCode, 100));
+  renderUnitsItem();
   loadSample();
 }());

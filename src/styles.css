@@ -589,8 +589,10 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   border: 1px solid var(--rule-2);
 }
 .fp-cur, .fp-new { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.fp-cur .v { font-size: 14px; font-weight: 500; color: var(--p-air); display: flex; flex-wrap: wrap; gap: 0 8px; }
+.fp-cur .v { font-size: 14px; font-weight: 500; color: var(--p-air); display: flex; flex-wrap: wrap; gap: 0 6px; }
 .fp-cur .v span { white-space: nowrap; }
+.fp-cur .v .fu-inline { color: var(--ink-3); font-weight: 400; font-size: 12px; align-self: center; }
+.fp-cur .v .sep { color: var(--ink-3); font-weight: 400; }
 .arrow { width: 22px; height: 14px; fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
 
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
@@ -680,6 +682,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   white-space: nowrap;
 }
 .menu button:hover, .menu button:focus-visible { background: var(--row-hover); outline: none; }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--rule-2); }
 
 .dlg {
   width: min(580px, calc(100vw - 32px));

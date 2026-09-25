@@ -194,7 +194,7 @@
     var feedMode = 94, modalF = NaN, spindle = 0, retMode = 98;
     var px = NaN, py = NaN, pz = NaN, ox = 0, oy = 0, oz = 0;
     var cycR = NaN, cycZ = NaN, cycQ = NaN, cycInit = NaN;
-    var ended = false, pendingTool = NaN, epoch = 0, curWcs = 540;
+    var ended = false, pendingTool = NaN, epoch = 0, curWcs = 540, sawInch = false, sawMm = false;
 
     var warnings = [], warnIdx = {};
     function warn(code, line, text) {
@@ -275,8 +275,8 @@
           case 730: case 810: case 820: case 830: case 840: case 850:
           case 860: case 870: case 880: case 890: newCycle = g; break;
           case 170: case 180: case 190: plane = g / 10; break;
-          case 200: units = 20; if (dispInch === undefined) dispInch = true; break;
-          case 210: units = 21; if (dispInch === undefined) dispInch = false; break;
+          case 200: units = 20; sawInch = true; if (dispInch === undefined) dispInch = true; break;
+          case 210: units = 21; sawMm = true; if (dispInch === undefined) dispInch = false; break;
           case 900: absMode = true; break;
           case 910: absMode = false; break;
           case 901: arcAbs = true; break;
@@ -498,6 +498,7 @@
       lineSpace: lineSpace, lineMove: lineMove,
       moves: mv, arcs: arcs,
       inch: !!dispInch,
+      fileUnits: sawInch && sawMm ? 'mixed' : sawInch ? 'inch' : sawMm ? 'mm' : null,
       warnings: warnings, tools: tools, spindleMax: spindleMax,
       fStyle: dominantStyle(fStyles), fCount: fCount
     };

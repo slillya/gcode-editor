@@ -35,6 +35,8 @@
           <button type="button" role="menuitem" data-act="how">How it works</button>
           <button type="button" role="menuitem" data-act="bug">Report a bug</button>
           <button type="button" role="menuitem" data-act="feature">Request a feature</button>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" role="menuitem" data-act="units" id="unitsItem">Change to metric</button>
         </div>
       </div>
       <button class="btn" id="sampleBtn" type="button" hidden>Load sample</button>
@@ -158,7 +160,7 @@
 
       <section class="panel card" aria-labelledby="feedsH">
         <h2 class="card-title" id="feedsH">Programmed feeds</h2>
-        <p class="lede">Change any feed in the program by value. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
+        <p class="lede">Change any feed in the program by value, in the file's own units. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
         <div class="table-wrap">
           <table class="feeds">
             <thead><tr><th scope="col">Current</th><th scope="col">Used by</th><th scope="col">New</th></tr></thead>
@@ -248,6 +250,8 @@
       <p>FeedFix finds the lowest retract or approach height that sits above every cutting move and shows it as a plane in the 3D view. If the stock is taller than the program expects, set it by hand to just above the top of your stock.</p>
       <h3>The check</h3>
       <p>Before every download the edited file is read back and compared move by move with the original. If any coordinate, arc or line differs, or any byte other than an F number changed, the download is blocked.</p>
+      <h3>Units</h3>
+      <p>FeedFix shows inches and in/min unless you pick Help → Change to metric. That only changes what you see. Your program keeps its own units (G20 or G21), and a new feed is converted to the file's units before it is written.</p>
       <h3>Before you run it</h3>
       <p>Dry-run or single-block the first run of an edited program and keep a hand on feed hold. Most controllers cap F at the machine's maximum feed, so a new feed above your machine's limit runs at the limit.</p>
       <h3>Mouse and touch</h3>

@@ -248,3 +248,41 @@ test('verification catches a tampered file', () => {
   bad[i + 1] = '2'.charCodeAt(0);
   assert.equal(Core.verify(r.P, bad, r.plan).ok, false);
 });
+
+test('the inch demo is written in G20 and edits cleanly', () => {
+  const text = Sample.make({ inch: true });
+  assert.match(text, /^G20$/m);
+  assert.ok(!/[XYZIJF]-?\d+\.\d{5,}/.test(text), 'no more than 4 decimals');
+  const r = edit(text, { airFeed: 200 });
+  assert.equal(r.P.fileUnits, 'inch');
+  close(r.safeZ, 0.08);
+  assert.ok(r.check.ok);
+  assert.match(r.text, /G1 Z0\.2 F200\n/);
+  assert.equal(edit(r.out, { safeZ: r.safeZ, airFeed: 200 }).plan.edits.length, 0);
+});
+
+test('a millimetre file shown in inches keeps millimetre feeds in the output', () => {
+  const P = Core.parse(enc(Sample.make()), { inch: true });
+  assert.equal(P.inch, true);
+  assert.equal(P.fileUnits, 'mm');
+  close(P.bbox.maxZ, 15 / 25.4, 1e-12);
+  const det = Core.detectSafeZ(P);
+  close(det.z, 2 / 25.4, 1e-12);
+  const cls = Core.classify(P, det.z);
+  const plan = Core.planEdits(P, cls, { airFeed: 200, includeRetracts: true, feedMap: {} });
+  const out = Core.buildOutput(P.bytes, plan.edits);
+  assert.ok(Core.verify(P, out, plan).ok);
+  // 200 in/min is written as 5080 mm/min in a G21 file
+  assert.ok(plan.edits.every((e) => e.to === 5080 || e.insert));
+  assert.match(dec(out), /G1 Z15 F5080\n/);
+  // and the edit plan matches the one made with millimetre display
+  const Pm = Core.parse(enc(Sample.make()));
+  const planMm = Core.planEdits(Pm, Core.classify(Pm, Core.detectSafeZ(Pm).z), { airFeed: 5080, includeRetracts: true, feedMap: {} });
+  assert.deepEqual(plan.edits.map((e) => [e.line, e.text]), planMm.edits.map((e) => [e.line, e.text]));
+});
+
+test('file units are reported separately from display units', () => {
+  assert.equal(Core.parse(enc('G21\nG1 X1 F100\n'), { inch: true }).fileUnits, 'mm');
+  assert.equal(Core.parse(enc('G20\nG1 X1 F10\nG21\nG1 X2\n')).fileUnits, 'mixed');
+  assert.equal(Core.parse(enc('G1 X1 F100\n')).fileUnits, null);
+});
