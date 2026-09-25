@@ -35,7 +35,7 @@ To read them:
 
 This repo is a Cloudflare Worker with static assets. The D1 database already exists and its ID is in `wrangler.jsonc`.
 
-1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → pick `slillya/gcode-editor`. Name the project `feedfix` (it must match `name` in `wrangler.jsonc` or the build fails). The build command can stay empty (the built site in `public/` is committed); the deploy command is `npx wrangler deploy`. Every push to the branch you pick redeploys.
+1. Cloudflare dashboard → Workers & Pages → Create → Import a repository → pick `slillya/gcode-editor`. Keep the project name `gcode-editor` (it must match `name` in `wrangler.jsonc`). The build command can stay empty (the built site in `public/` is committed); the deploy command is `npx wrangler deploy`. Every push to the branch you pick redeploys.
    Or, from a terminal with Wrangler logged in: `npx wrangler deploy`.
 2. Worker → Settings → Variables and Secrets → add a **secret** named `ADMIN_TOKEN` (a long random password for the inbox). Optionally add `REPORT_SALT` (any random text).
 3. Worker → Settings → Domains & Routes → add a custom domain such as `feedfix.yoursite.com`.

@@ -2,7 +2,7 @@
   // Cloudflare Worker that serves FeedFix from ./public and stores
   // bug reports / feature requests in D1. See README.md for setup.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "feedfix",
+  "name": "gcode-editor",
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
   "assets": {
