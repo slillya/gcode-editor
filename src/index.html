@@ -1,0 +1,261 @@
+<!--@head-->
+<title>FeedFix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Saira+Condensed:wght@600;700&amp;display=swap">
+<style>
+/*@css*/
+</style>
+<!--@body-->
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+        <rect class="m-frame" x="2" y="2" width="30" height="30" rx="4"></rect>
+        <path class="m-air" d="M8 9H26"></path>
+        <path class="m-cut" d="M8 15H26V21H8V27H26"></path>
+      </svg>
+      <div class="brand-text">
+        <span class="wordmark">FeedFix</span>
+        <span class="tagline">G-code backplot &amp; feed editor</span>
+      </div>
+    </div>
+    <div class="file">
+      <span class="file-label">Program</span>
+      <span class="file-name" id="fileName">demo-plate.nc</span>
+      <span class="badge" id="sampleBadge">Sample</span>
+    </div>
+    <div class="actions">
+      <div class="menu-wrap">
+        <button class="btn" id="helpBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="helpMenu">
+          Help
+          <svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"></path></svg>
+        </button>
+        <div class="menu" id="helpMenu" role="menu" aria-labelledby="helpBtn" hidden>
+          <button type="button" role="menuitem" data-act="how">How it works</button>
+          <button type="button" role="menuitem" data-act="bug">Report a bug</button>
+          <button type="button" role="menuitem" data-act="feature">Request a feature</button>
+        </div>
+      </div>
+      <button class="btn" id="sampleBtn" type="button" hidden>Load sample</button>
+      <button class="btn" id="openBtn" type="button" title="Open a G-code file. It stays on your computer.">Open G-code…</button>
+      <input type="file" id="fileInput" class="visually-hidden" tabindex="-1" aria-hidden="true"
+        accept=".nc,.gcode,.ngc,.tap,.cnc,.gc,.txt,.nc1,.ncc,.eia,.mpf,.min,.ptp,text/plain">
+      <button class="btn btn-accent" id="downloadBtn" type="button">Download fast file</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="panel viewport" aria-label="Toolpath backplot">
+      <div class="stage">
+        <canvas id="plot" aria-label="3D toolpath view. Drag to orbit, right-drag or shift-drag to pan, scroll to zoom, click a move to find its line."></canvas>
+        <div class="legend" id="legend" role="group" aria-label="Show or hide move types"></div>
+        <div class="views" role="group" aria-label="View">
+          <button type="button" data-view="iso" aria-pressed="true">Iso</button>
+          <button type="button" data-view="top" aria-pressed="false">Top</button>
+          <button type="button" data-view="front" aria-pressed="false">Front</button>
+          <button type="button" data-view="right" aria-pressed="false">Right</button>
+          <button type="button" data-view="fit" aria-pressed="false">Fit</button>
+        </div>
+        <label class="safe-toggle"><input type="checkbox" id="safeShow" checked> Safe height plane</label>
+        <span class="axl axl-x" id="axX" aria-hidden="true">X</span>
+        <span class="axl axl-y" id="axY" aria-hidden="true">Y</span>
+        <span class="axl axl-z" id="axZ" aria-hidden="true">Z</span>
+        <p class="gesture-hint">Drag to orbit · Right-drag to pan · Scroll to zoom · Click a move to find its line</p>
+        <div class="nogl" id="noGl" hidden>
+          <p><strong>3D view unavailable.</strong><br>This browser has WebGL turned off. The feed editor and download still work.</p>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="icon-btn" id="playBtn" type="button" aria-label="Play simulation">
+          <svg class="i-play" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z"></path></svg>
+          <svg class="i-pause" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 1.5h3.2v11H2.5zM8.3 1.5h3.2v11H8.3z"></path></svg>
+        </button>
+        <select id="speedSel" aria-label="Simulation speed"></select>
+        <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="Position in program">
+      </div>
+      <div class="dro" aria-label="Tool position">
+        <span class="dro-i"><b>X</b><span id="droX">0.000</span></span>
+        <span class="dro-i"><b>Y</b><span id="droY">0.000</span></span>
+        <span class="dro-i"><b>Z</b><span id="droZ">0.000</span></span>
+        <span class="dro-i"><b>F</b><span id="droF">—</span></span>
+        <span class="dro-i t"><b>LINE</b><span id="droN">—</span></span>
+        <span class="dro-i t"><b>TIME</b><span id="droT">—</span></span>
+      </div>
+    </section>
+
+    <section class="panel code" aria-label="G-code listing">
+      <div class="code-head">
+        <h2>G-code</h2>
+        <span class="fine" id="codeInfo"></span>
+        <span class="spacer"></span>
+        <span class="chip-changed" id="changedCount"></span>
+        <button class="icon-btn small" id="prevChange" type="button" aria-label="Previous changed line">
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 3.2l5 5.2-1.2 1.2L7 5.6 3.2 9.6 2 8.4z"></path></svg>
+        </button>
+        <button class="icon-btn small" id="nextChange" type="button" aria-label="Next changed line">
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 10.8L2 5.6l1.2-1.2L7 8.4l3.8-4L12 5.6z"></path></svg>
+        </button>
+      </div>
+      <div class="code-body" id="codeBody" tabindex="0" aria-label="Program lines. Use the arrow keys to step through lines.">
+        <div class="code-spacer" id="codeSpacer"></div>
+        <div class="code-rows" id="codeRows"></div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Feed settings">
+      <section class="panel card" aria-labelledby="timeH">
+        <h2 class="card-title" id="timeH">Cycle time</h2>
+        <div class="times">
+          <div class="time"><span class="k">As programmed</span><span class="big" id="tOrig">—</span></div>
+          <div class="time"><span class="k">With new feeds</span><span class="big-row"><span class="big accent" id="tNew">—</span><span class="save" id="tSave"></span></span></div>
+        </div>
+        <div class="bars" aria-hidden="true">
+          <div class="bar-row"><span>Before</span><div class="stack" id="barA"></div><span class="fine" id="barAT"></span></div>
+          <div class="bar-row"><span>After</span><div class="stack" id="barB"></div><span class="fine" id="barBT"></span></div>
+        </div>
+        <div class="field">
+          <label for="maxRate">Machine max feed</label>
+          <div class="input-unit"><input id="maxRate" type="number" min="1" step="100" inputmode="decimal"><span class="unit" id="maxRateUnit">mm/min</span></div>
+        </div>
+        <p class="fine">Estimated from the programmed feeds, capped at the machine max, without acceleration. Real run time is longer.</p>
+      </section>
+
+      <section class="panel card card-key" aria-labelledby="airH">
+        <div class="card-head">
+          <h2 class="card-title" id="airH">Air moves</h2>
+          <span class="pill" id="airPill"></span>
+        </div>
+        <p class="lede">Rapids your CAM wrote as slow G1 feed moves. Only moves with nothing to cut get the new feed. Every cutting move keeps its own.</p>
+        <div class="feed-pair">
+          <div class="fp-cur">
+            <span class="k">Current feed</span>
+            <span class="v mono" id="airCur">—</span>
+            <span class="fine" id="airLen"></span>
+          </div>
+          <svg class="arrow" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"></path></svg>
+          <div class="fp-new">
+            <label class="k" for="airFeed">New feed</label>
+            <div class="input-unit big"><input id="airFeed" type="number" min="0" step="100" inputmode="decimal"><span class="unit" id="airUnit">mm/min</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="safeZ">Safe height (Z)</label>
+          <div class="input-unit"><input id="safeZ" type="number" step="0.1" inputmode="decimal"><span class="unit" id="safeUnit">mm</span></div>
+          <button class="btn btn-small" id="safeAuto" type="button">Auto</button>
+        </div>
+        <p class="fine" id="safeHint"></p>
+        <label class="check"><input type="checkbox" id="incRetract" checked><span>Also speed up straight-up retracts out of the cut. <span class="fine">Turn this off if you ream or bore with a feed-out.</span></span></label>
+        <p class="alert" id="airWarn" hidden></p>
+      </section>
+
+      <section class="panel card" aria-labelledby="outH">
+        <h2 class="card-title" id="outH">Output check</h2>
+        <div class="verify pending" id="verify"><strong>Checking the edited file…</strong></div>
+        <button class="btn btn-accent wide" id="downloadBtn2" type="button">Download <span class="mono" id="dlName"></span></button>
+        <p class="fine" id="previewNote" hidden>In this preview the file saves with an added .txt ending. Remove it before loading the file on the machine.</p>
+      </section>
+
+      <section class="panel card" aria-labelledby="feedsH">
+        <h2 class="card-title" id="feedsH">Programmed feeds</h2>
+        <p class="lede">Change any feed in the program by value. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
+        <div class="table-wrap">
+          <table class="feeds">
+            <thead><tr><th scope="col">Current</th><th scope="col">Used by</th><th scope="col">New</th></tr></thead>
+            <tbody id="feedRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel card" aria-labelledby="infoH">
+        <h2 class="card-title" id="infoH">Program</h2>
+        <dl class="kv" id="info"></dl>
+        <ul class="notes" id="notes" hidden></ul>
+        <p class="fine">Everything runs in your browser. Your G-code is never uploaded unless you attach it to a bug report.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="drop" id="drop" hidden>Drop G-code to open</div>
+<div class="busy" id="busy" hidden>Reading program…</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog class="dlg" id="reportDlg" aria-labelledby="reportH">
+  <form class="dlg-body" id="reportForm" novalidate>
+    <div class="dlg-head">
+      <h2 id="reportH">Report a bug</h2>
+      <button class="icon-btn small" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l4 4 4-4 1 1-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4z"></path></svg>
+      </button>
+    </div>
+    <div class="kind-toggle" role="radiogroup" aria-label="Report type">
+      <label><input type="radio" name="kind" value="bug" id="kindBug" checked><span>Bug</span></label>
+      <label><input type="radio" name="kind" value="feature" id="kindFeature"><span>Feature request</span></label>
+    </div>
+    <div class="fld">
+      <label for="rTitle">Summary</label>
+      <input id="rTitle" type="text" maxlength="200" autocomplete="off" required>
+    </div>
+    <div class="fld">
+      <label for="rDetails" id="rDetailsLabel">What happened?</label>
+      <textarea id="rDetails" rows="6" maxlength="10000" required></textarea>
+    </div>
+    <div class="fld">
+      <label for="rContact">Your name or email <span class="fine">(optional, if you'd like a reply)</span></label>
+      <input id="rContact" type="text" maxlength="200" autocomplete="email">
+    </div>
+    <label class="check" id="rAttachRow"><input type="checkbox" id="rAttach"><span>Attach the program I have open <span class="fine" id="rAttachInfo"></span></span></label>
+    <details class="ctx">
+      <summary>Also sent: app version, browser and your current settings</summary>
+      <pre id="rCtx"></pre>
+    </details>
+    <input type="text" id="rWebsite" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p class="alert" id="rError" hidden></p>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="rCopy" hidden>Copy report</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn btn-accent" type="submit" id="rSend">Send report</button>
+    </div>
+  </form>
+  <div class="dlg-body" id="reportDone" hidden>
+    <div class="dlg-head"><h2>Thanks, it's in</h2></div>
+    <p id="reportDoneText"></p>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn btn-accent" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="howDlg" aria-labelledby="howH">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2 id="howH">How FeedFix works</h2>
+      <button class="icon-btn small" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l4 4 4-4 1 1-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4z"></path></svg>
+      </button>
+    </div>
+    <div class="how">
+      <h3>The colours</h3>
+      <ul class="how-legend">
+        <li><span class="sw sw-rapid"></span><span><b>Rapid</b> G0 moves.</span></li>
+        <li><span class="sw sw-air"></span><span><b>Air move</b> a feed move with nothing to cut: completely at or above the safe height, or dropping straight back to a depth the tool already reached at that spot.</span></li>
+        <li><span class="sw sw-retract"></span><span><b>Retract</b> a straight-up move from the cut to the safe height.</span></li>
+        <li><span class="sw sw-plunge"></span><span><b>Plunge</b> a straight-down feed move into material.</span></li>
+        <li><span class="sw sw-cut"></span><span><b>Cut</b> every other feed move.</span></li>
+      </ul>
+      <h3>What gets faster</h3>
+      <p>Air moves, and retracts if that box is ticked, get the new feed. Plunges and cuts keep the feed your CAM gave them unless you change it under Programmed feeds. The tool path itself never changes: FeedFix only rewrites F numbers, and adds an F word where a move needs a different feed than the line before it.</p>
+      <h3>Safe height</h3>
+      <p>FeedFix finds the lowest retract or approach height that sits above every cutting move and shows it as a plane in the 3D view. If the stock is taller than the program expects, set it by hand to just above the top of your stock.</p>
+      <h3>The check</h3>
+      <p>Before every download the edited file is read back and compared move by move with the original. If any coordinate, arc or line differs, or any byte other than an F number changed, the download is blocked.</p>
+      <h3>Before you run it</h3>
+      <p>Dry-run or single-block the first run of an edited program and keep a hand on feed hold. Most controllers cap F at the machine's maximum feed, so a new feed above your machine's limit runs at the limit.</p>
+      <h3>Mouse and touch</h3>
+      <p>Drag to orbit, right-drag or Shift-drag to pan, scroll or pinch to zoom, double-click to fit. Click a move to jump to its line. Space plays or pauses the simulation.</p>
+    </div>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn btn-accent" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+<script>
+/*@js*/
+</script>

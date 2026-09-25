@@ -1,0 +1,3724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Backplot G-code in 3D with rapids, plunges and cuts colour-coded, then speed up slow air moves without changing the toolpath. Runs entirely in your browser.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2034%2034%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%2230%22%20height%3D%2230%22%20rx%3D%224%22%20fill%3D%22%2313181c%22%2F%3E%3Cpath%20d%3D%22M8%209H26%22%20stroke%3D%22%23ff7a33%22%20stroke-width%3D%222.4%22%20stroke-dasharray%3D%223%202.4%22%2F%3E%3Cpath%20d%3D%22M8%2015H26V21H8V27H26%22%20fill%3D%22none%22%20stroke%3D%22%234ea8ff%22%20stroke-width%3D%222.4%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<title>FeedFix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Saira+Condensed:wght@600;700&amp;display=swap">
+<style>
+:root {
+  --bg: #e8ecef;
+  --surface: #f7f9fa;
+  --surface-2: #ffffff;
+  --ink: #13181c;
+  --ink-2: #46525b;
+  --ink-3: #6c7984;
+  --rule: #cdd5db;
+  --rule-2: #e0e5e9;
+  --accent: #d9480f;
+  --accent-hover: #bf3e0c;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe6da;
+  --ok: #1b7648;
+  --ok-soft: #ddf1e5;
+  --bad: #b3261e;
+  --bad-soft: #f8dfdc;
+  --warn: #8a5500;
+  --warn-soft: #fcefd2;
+  --vp-bg: #f2f4f6;
+  --vp-grid: #dde3e7;
+  --vp-grid-major: #c2ccd3;
+  --p-rapid: #7c8993;
+  --p-air: #e8590c;
+  --p-retract: #26915a;
+  --p-plunge: #c2185b;
+  --p-cut: #1c62c8;
+  --p-hl: #0f1417;
+  --ax-x: #d93b3b;
+  --ax-y: #2f9e44;
+  --ax-z: #2f6fe0;
+  --row-cur: #fce9de;
+  --row-hover: #eef2f4;
+  --k-g: #7a3bd6;
+  --k-a: #13181c;
+  --k-i: #4d5a64;
+  --k-f: #b8430d;
+  --k-c: #7b8791;
+  --k-n: #95a1aa;
+  --k-o: #1b6a8a;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --radius: 6px;
+  --row-h: 22px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1013;
+    --surface: #15191c;
+    --surface-2: #1c2125;
+    --ink: #e2e7ea;
+    --ink-2: #a3aeb6;
+    --ink-3: #75828b;
+    --rule: #2a3238;
+    --rule-2: #20272c;
+    --accent: #ff7a33;
+    --accent-hover: #ff914f;
+    --accent-ink: #1a0b03;
+    --accent-soft: #3a1f12;
+    --ok: #52c98f;
+    --ok-soft: #13291e;
+    --bad: #ff7369;
+    --bad-soft: #3a1714;
+    --warn: #f2bb4e;
+    --warn-soft: #2f2410;
+    --vp-bg: #0f1316;
+    --vp-grid: #1b2227;
+    --vp-grid-major: #2a343b;
+    --p-rapid: #8e9ba4;
+    --p-air: #ff8a3d;
+    --p-retract: #5cd18f;
+    --p-plunge: #ff5fa2;
+    --p-cut: #4ea8ff;
+    --p-hl: #ffffff;
+    --ax-x: #ff6b6b;
+    --ax-y: #5fd07a;
+    --ax-z: #6aa4ff;
+    --row-cur: #33211a;
+    --row-hover: #1b2024;
+    --k-g: #c29bff;
+    --k-a: #e2e7ea;
+    --k-i: #aab5bd;
+    --k-f: #ff9a5c;
+    --k-c: #6d7a83;
+    --k-n: #56626b;
+    --k-o: #6cc3e0;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1013;
+  --surface: #15191c;
+  --surface-2: #1c2125;
+  --ink: #e2e7ea;
+  --ink-2: #a3aeb6;
+  --ink-3: #75828b;
+  --rule: #2a3238;
+  --rule-2: #20272c;
+  --accent: #ff7a33;
+  --accent-hover: #ff914f;
+  --accent-ink: #1a0b03;
+  --accent-soft: #3a1f12;
+  --ok: #52c98f;
+  --ok-soft: #13291e;
+  --bad: #ff7369;
+  --bad-soft: #3a1714;
+  --warn: #f2bb4e;
+  --warn-soft: #2f2410;
+  --vp-bg: #0f1316;
+  --vp-grid: #1b2227;
+  --vp-grid-major: #2a343b;
+  --p-rapid: #8e9ba4;
+  --p-air: #ff8a3d;
+  --p-retract: #5cd18f;
+  --p-plunge: #ff5fa2;
+  --p-cut: #4ea8ff;
+  --p-hl: #ffffff;
+  --ax-x: #ff6b6b;
+  --ax-y: #5fd07a;
+  --ax-z: #6aa4ff;
+  --row-cur: #33211a;
+  --row-hover: #1b2024;
+  --k-g: #c29bff;
+  --k-a: #e2e7ea;
+  --k-i: #aab5bd;
+  --k-f: #ff9a5c;
+  --k-c: #6d7a83;
+  --k-n: #56626b;
+  --k-o: #6cc3e0;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+*, *::before, *::after { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mono, .big, .dro, .fv { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.fine { color: var(--ink-3); font-size: 12px; }
+
+/* ---- frame ---------------------------------------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  min-height: 640px;
+  padding-inline: 16px;
+  padding-block: 12px 16px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.mark { width: 34px; height: 34px; flex: none; }
+.mark .m-frame { fill: none; stroke: var(--ink); stroke-width: 2; }
+.mark .m-cut { fill: none; stroke: var(--p-cut); stroke-width: 2.4; stroke-linejoin: round; }
+.mark .m-air { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-dasharray: 3 2.4; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.05; }
+.wordmark {
+  font: 700 26px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.tagline { font-size: 12px; color: var(--ink-2); letter-spacing: 0.01em; }
+
+.file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+.file-label {
+  font: 600 12px/1 var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.file-name {
+  font: 500 14px/1.2 var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.badge {
+  font: 600 11px/1 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 6px 3px;
+  border-radius: 3px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  flex: none;
+}
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-small { min-height: 30px; padding: 4px 10px; font-size: 13px; }
+.btn.wide { width: 100%; }
+
+.main {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-rows: minmax(0, 1fr) minmax(170px, 32%);
+  grid-template-areas: "view side" "code side";
+  min-height: 0;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---- viewport --------------------------------------------------------------- */
+
+.viewport { grid-area: view; display: flex; flex-direction: column; overflow: hidden; }
+.stage { position: relative; flex: 1 1 auto; min-height: 260px; background: var(--vp-bg); }
+.stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+.stage canvas:active { cursor: grabbing; }
+
+.legend {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 190px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+.lg {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px 4px 7px;
+  min-height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.lg:not(.on) { opacity: 0.45; }
+.lg:not(.on) .sw { filter: grayscale(1); }
+.lg.empty { opacity: 0.35; }
+.lg-n { font-family: var(--font-mono); color: var(--ink-3); font-size: 12px; }
+.sw { width: 18px; height: 0; border-top: 3px solid; flex: none; }
+.sw-rapid { border-top: 3px dashed var(--p-rapid); }
+.sw-air { border-color: var(--p-air); }
+.sw-retract { border-color: var(--p-retract); }
+.sw-plunge { border-color: var(--p-plunge); }
+.sw-cut { border-color: var(--p-cut); }
+
+.views {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.views button {
+  border: 0;
+  background: transparent;
+  padding: 5px 9px;
+  min-height: 28px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-left: 1px solid var(--rule-2);
+}
+.views button:first-child { border-left: 0; }
+.views button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.safe-toggle {
+  position: absolute;
+  right: 10px;
+  top: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+}
+
+.axl { position: absolute; left: 0; top: 0; font: 600 11px/16px var(--font-mono); width: 10px; text-align: center; pointer-events: none; }
+.axl-x { color: var(--ax-x); }
+.axl-y { color: var(--ax-y); }
+.axl-z { color: var(--ax-z); }
+
+.gesture-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  pointer-events: none;
+  text-align: right;
+}
+
+.nogl {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--ink-2);
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--rule);
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+}
+.icon-btn:hover { border-color: var(--ink-3); }
+.icon-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.icon-btn .i-pause { display: none; }
+.icon-btn.playing .i-play { display: none; }
+.icon-btn.playing .i-pause { display: block; }
+.icon-btn.small { width: 28px; height: 28px; }
+#speedSel {
+  min-height: 34px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+#scrub { flex: 1 1 auto; min-width: 60px; accent-color: var(--accent); }
+
+.dro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 8px 12px 9px;
+  border-top: 1px solid var(--rule-2);
+  font-size: 13px;
+}
+.dro-i { display: inline-flex; align-items: baseline; gap: 6px; }
+.dro-i b {
+  font: 600 12px/1 var(--font-display);
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+.dro-i span { min-width: 7ch; text-align: right; }
+.dro-i.t span { min-width: 0; }
+#droF.changed { color: var(--accent); font-weight: 600; }
+
+/* ---- code listing ----------------------------------------------------------- */
+
+.code { grid-area: code; display: flex; flex-direction: column; overflow: hidden; }
+.code-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.code-head h2, .card-title {
+  margin: 0;
+  font: 600 13px/1.2 var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.code-head h2 { white-space: nowrap; }
+.code-head .spacer { flex: 1; }
+.chip-changed {
+  font: 500 12px/1 var(--font-mono);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+.chip-changed.none { color: var(--ink-3); background: var(--rule-2); }
+.code-body {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: auto;
+  font: 13px/var(--row-h) var(--font-mono);
+  background: var(--surface-2);
+  min-height: 0;
+}
+.code-spacer { width: 1px; }
+.code-rows { position: absolute; top: 0; left: 0; min-width: 100%; }
+.row {
+  display: flex;
+  height: var(--row-h);
+  white-space: pre;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.row:hover { background: var(--row-hover); }
+.row.cur { background: var(--row-cur); }
+.row.changed { border-left-color: var(--accent); }
+.ln {
+  flex: none;
+  width: 6ch;
+  padding-right: 1.2ch;
+  text-align: right;
+  color: var(--k-n);
+  user-select: none;
+}
+.tx { padding-right: 16px; }
+.k-g { color: var(--k-g); }
+.k-a { color: var(--k-a); }
+.k-i { color: var(--k-i); }
+.k-f { color: var(--k-f); }
+.k-c { color: var(--k-c); font-style: italic; }
+.k-n { color: var(--k-n); }
+.k-o { color: var(--k-o); }
+.fnew {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 3px;
+  padding: 0 2px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* ---- sidebar ----------------------------------------------------------------- */
+
+.side {
+  grid-area: side;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.card { flex: none; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.card-key { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pill {
+  font: 500 12px/1 var(--font-mono);
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lede { margin: 0; color: var(--ink-2); font-size: 13px; }
+
+.times { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 22px; }
+.time { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.big-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.k {
+  font: 600 12px/1.2 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.big { font-size: 30px; line-height: 1.05; font-weight: 500; letter-spacing: -0.01em; }
+.big.accent { color: var(--accent); }
+.save {
+  font: 600 14px/1 var(--font-mono);
+  padding: 7px 9px;
+  border-radius: var(--radius);
+  background: var(--rule-2);
+  color: var(--ink-2);
+}
+.save.good { background: var(--ok-soft); color: var(--ok); }
+.save.worse { background: var(--bad-soft); color: var(--bad); }
+
+.bars { display: grid; gap: 6px; }
+.bar-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) 52px; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+.bar-row .fine { text-align: right; font-family: var(--font-mono); }
+.stack { display: flex; height: 12px; background: var(--rule-2); border-radius: 2px; overflow: hidden; }
+.st { height: 100%; flex: none; }
+.st-rapid { background: var(--p-rapid); }
+.st-air { background: var(--p-air); }
+.st-retract { background: var(--p-retract); }
+.st-plunge { background: var(--p-plunge); }
+.st-cut { background: var(--p-cut); }
+
+.field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field > label { flex: 1 1 120px; font-size: 13px; color: var(--ink-2); }
+.input-unit {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.input-unit:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.input-unit input {
+  width: 8ch;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-height: 32px;
+}
+.input-unit input:focus { outline: none; }
+.input-unit .unit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  background: var(--rule-2);
+  white-space: nowrap;
+}
+.input-unit.big input { width: 9ch; font-size: 20px; font-weight: 500; }
+
+.feed-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--rule-2);
+}
+.fp-cur, .fp-new { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fp-cur .v { font-size: 14px; font-weight: 500; color: var(--p-air); display: flex; flex-wrap: wrap; gap: 0 8px; }
+.fp-cur .v span { white-space: nowrap; }
+.arrow { width: 22px; height: 14px; fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
+
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.alert {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+}
+
+.verify { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: var(--radius); font-size: 13px; }
+.verify strong { font-weight: 600; }
+.verify.ok { background: var(--ok-soft); color: var(--ok); }
+.verify.ok span { color: var(--ink-2); }
+.verify.pending { background: var(--rule-2); color: var(--ink-2); }
+.verify.bad { background: var(--bad-soft); color: var(--bad); }
+
+.table-wrap { overflow-x: auto; margin-inline: -4px; }
+.feeds { width: 100%; border-collapse: collapse; font-size: 13px; }
+.feeds th, .feeds td { text-align: left; padding: 7px 4px; border-top: 1px solid var(--rule-2); vertical-align: top; }
+.feeds thead th {
+  border-top: 0;
+  padding-top: 0;
+  font: 600 11.5px/1.2 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.feeds th[scope="row"] { font-weight: 400; white-space: nowrap; }
+.fv { display: block; font-weight: 500; }
+.fu { display: block; font-size: 11.5px; color: var(--ink-3); }
+.use .parts { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.use .u { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.use .fine { display: block; margin-top: 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot-air { background: var(--p-air); }
+.dot-retract { background: var(--p-retract); }
+.dot-plunge { background: var(--p-plunge); }
+.dot-cut { background: var(--p-cut); }
+.nf input {
+  width: 8.5ch;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 5px 6px;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+.nf input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 14px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--ink-3); }
+.kv dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.kv dd .fine { font-family: var(--font-ui); }
+.notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 12.5px; color: var(--warn); }
+.notes li { padding: 7px 9px; border-radius: var(--radius); background: var(--warn-soft); }
+.linklike { border: 0; background: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+/* ---- help menu and dialogs ---------------------------------------------------- */
+
+.menu-wrap { position: relative; }
+.caret { width: 10px; height: 6px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 25;
+  min-width: 200px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(10, 14, 17, 0.18);
+}
+.menu button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menu button:hover, .menu button:focus-visible { background: var(--row-hover); outline: none; }
+
+.dlg {
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+}
+.dlg::backdrop { background: rgba(8, 11, 13, 0.5); }
+.dlg-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dlg-head h2 { margin: 0; font: 700 20px/1.15 var(--font-display); letter-spacing: 0.02em; text-transform: uppercase; }
+.dlg-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+.dlg-foot .spacer { flex: 1; }
+.kind-toggle { display: inline-flex; align-self: flex-start; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+.kind-toggle label { position: relative; cursor: pointer; }
+.kind-toggle input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.kind-toggle span { display: block; padding: 6px 14px; font-size: 13px; }
+.kind-toggle label + label span { border-left: 1px solid var(--rule-2); }
+.kind-toggle input:checked + span { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.kind-toggle input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.fld { display: flex; flex-direction: column; gap: 5px; }
+.fld label { font-size: 13px; color: var(--ink-2); }
+.fld input, .fld textarea {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 8px 10px;
+}
+.fld textarea { resize: vertical; min-height: 110px; line-height: 1.45; }
+.fld input:focus, .fld textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ctx summary { cursor: pointer; font-size: 12.5px; color: var(--ink-3); }
+.ctx pre {
+  margin: 6px 0 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--rule-2);
+  font: 11.5px/1.45 var(--font-mono);
+}
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.how { display: flex; flex-direction: column; gap: 4px; max-width: 62ch; }
+.how h3 { margin: 10px 0 0; font: 600 13px/1.2 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.how h3:first-child { margin-top: 0; }
+.how p { margin: 0; }
+.how-legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.how-legend li { display: grid; grid-template-columns: 22px auto; column-gap: 8px; align-items: baseline; }
+.how-legend .sw { align-self: center; }
+.how-legend b { margin-right: 6px; }
+
+/* ---- overlays --------------------------------------------------------------- */
+
+.drop {
+  position: fixed;
+  inset: 12px;
+  z-index: 20;
+  display: grid;
+  place-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  font: 600 22px/1.2 var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  pointer-events: none;
+}
+.busy {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  display: grid;
+  place-content: center;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  font-weight: 500;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  max-width: min(92vw, 520px);
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  pointer-events: none;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 13.5px;
+  transition: opacity 0.18s, transform 0.18s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { background: var(--bad); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+}
+
+/* ---- narrow screens ------------------------------------------------------------ */
+
+@media (max-width: 1000px) {
+  html, body { height: auto; }
+  .app { height: auto; min-height: 0; grid-template-rows: auto auto; }
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: "view" "side" "code";
+  }
+  .stage { flex: none; height: min(64vh, 560px); min-height: 300px; }
+  .code { height: 440px; }
+  .side { overflow: visible; }
+}
+
+@media (max-width: 560px) {
+  .menu { left: 0; right: auto; }
+  .legend { right: 10px; top: 48px; }
+  .safe-toggle { top: auto; bottom: 30px; }
+  .gesture-hint { display: none; }
+  .wordmark { font-size: 22px; }
+  .actions { width: 100%; }
+  .actions .btn { flex: 1 1 auto; }
+  .big { font-size: 26px; }
+  .feed-pair { grid-template-columns: minmax(0, 1fr); }
+  .feed-pair .arrow { transform: rotate(90deg); justify-self: start; }
+  #codeInfo { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 34 34" aria-hidden="true">
+        <rect class="m-frame" x="2" y="2" width="30" height="30" rx="4"></rect>
+        <path class="m-air" d="M8 9H26"></path>
+        <path class="m-cut" d="M8 15H26V21H8V27H26"></path>
+      </svg>
+      <div class="brand-text">
+        <span class="wordmark">FeedFix</span>
+        <span class="tagline">G-code backplot &amp; feed editor</span>
+      </div>
+    </div>
+    <div class="file">
+      <span class="file-label">Program</span>
+      <span class="file-name" id="fileName">demo-plate.nc</span>
+      <span class="badge" id="sampleBadge">Sample</span>
+    </div>
+    <div class="actions">
+      <div class="menu-wrap">
+        <button class="btn" id="helpBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="helpMenu">
+          Help
+          <svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"></path></svg>
+        </button>
+        <div class="menu" id="helpMenu" role="menu" aria-labelledby="helpBtn" hidden>
+          <button type="button" role="menuitem" data-act="how">How it works</button>
+          <button type="button" role="menuitem" data-act="bug">Report a bug</button>
+          <button type="button" role="menuitem" data-act="feature">Request a feature</button>
+        </div>
+      </div>
+      <button class="btn" id="sampleBtn" type="button" hidden>Load sample</button>
+      <button class="btn" id="openBtn" type="button" title="Open a G-code file. It stays on your computer.">Open G-code…</button>
+      <input type="file" id="fileInput" class="visually-hidden" tabindex="-1" aria-hidden="true"
+        accept=".nc,.gcode,.ngc,.tap,.cnc,.gc,.txt,.nc1,.ncc,.eia,.mpf,.min,.ptp,text/plain">
+      <button class="btn btn-accent" id="downloadBtn" type="button">Download fast file</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="panel viewport" aria-label="Toolpath backplot">
+      <div class="stage">
+        <canvas id="plot" aria-label="3D toolpath view. Drag to orbit, right-drag or shift-drag to pan, scroll to zoom, click a move to find its line."></canvas>
+        <div class="legend" id="legend" role="group" aria-label="Show or hide move types"></div>
+        <div class="views" role="group" aria-label="View">
+          <button type="button" data-view="iso" aria-pressed="true">Iso</button>
+          <button type="button" data-view="top" aria-pressed="false">Top</button>
+          <button type="button" data-view="front" aria-pressed="false">Front</button>
+          <button type="button" data-view="right" aria-pressed="false">Right</button>
+          <button type="button" data-view="fit" aria-pressed="false">Fit</button>
+        </div>
+        <label class="safe-toggle"><input type="checkbox" id="safeShow" checked> Safe height plane</label>
+        <span class="axl axl-x" id="axX" aria-hidden="true">X</span>
+        <span class="axl axl-y" id="axY" aria-hidden="true">Y</span>
+        <span class="axl axl-z" id="axZ" aria-hidden="true">Z</span>
+        <p class="gesture-hint">Drag to orbit · Right-drag to pan · Scroll to zoom · Click a move to find its line</p>
+        <div class="nogl" id="noGl" hidden>
+          <p><strong>3D view unavailable.</strong><br>This browser has WebGL turned off. The feed editor and download still work.</p>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="icon-btn" id="playBtn" type="button" aria-label="Play simulation">
+          <svg class="i-play" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z"></path></svg>
+          <svg class="i-pause" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 1.5h3.2v11H2.5zM8.3 1.5h3.2v11H8.3z"></path></svg>
+        </button>
+        <select id="speedSel" aria-label="Simulation speed"></select>
+        <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="Position in program">
+      </div>
+      <div class="dro" aria-label="Tool position">
+        <span class="dro-i"><b>X</b><span id="droX">0.000</span></span>
+        <span class="dro-i"><b>Y</b><span id="droY">0.000</span></span>
+        <span class="dro-i"><b>Z</b><span id="droZ">0.000</span></span>
+        <span class="dro-i"><b>F</b><span id="droF">—</span></span>
+        <span class="dro-i t"><b>LINE</b><span id="droN">—</span></span>
+        <span class="dro-i t"><b>TIME</b><span id="droT">—</span></span>
+      </div>
+    </section>
+
+    <section class="panel code" aria-label="G-code listing">
+      <div class="code-head">
+        <h2>G-code</h2>
+        <span class="fine" id="codeInfo"></span>
+        <span class="spacer"></span>
+        <span class="chip-changed" id="changedCount"></span>
+        <button class="icon-btn small" id="prevChange" type="button" aria-label="Previous changed line">
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 3.2l5 5.2-1.2 1.2L7 5.6 3.2 9.6 2 8.4z"></path></svg>
+        </button>
+        <button class="icon-btn small" id="nextChange" type="button" aria-label="Next changed line">
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 10.8L2 5.6l1.2-1.2L7 8.4l3.8-4L12 5.6z"></path></svg>
+        </button>
+      </div>
+      <div class="code-body" id="codeBody" tabindex="0" aria-label="Program lines. Use the arrow keys to step through lines.">
+        <div class="code-spacer" id="codeSpacer"></div>
+        <div class="code-rows" id="codeRows"></div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Feed settings">
+      <section class="panel card" aria-labelledby="timeH">
+        <h2 class="card-title" id="timeH">Cycle time</h2>
+        <div class="times">
+          <div class="time"><span class="k">As programmed</span><span class="big" id="tOrig">—</span></div>
+          <div class="time"><span class="k">With new feeds</span><span class="big-row"><span class="big accent" id="tNew">—</span><span class="save" id="tSave"></span></span></div>
+        </div>
+        <div class="bars" aria-hidden="true">
+          <div class="bar-row"><span>Before</span><div class="stack" id="barA"></div><span class="fine" id="barAT"></span></div>
+          <div class="bar-row"><span>After</span><div class="stack" id="barB"></div><span class="fine" id="barBT"></span></div>
+        </div>
+        <div class="field">
+          <label for="maxRate">Machine max feed</label>
+          <div class="input-unit"><input id="maxRate" type="number" min="1" step="100" inputmode="decimal"><span class="unit" id="maxRateUnit">mm/min</span></div>
+        </div>
+        <p class="fine">Estimated from the programmed feeds, capped at the machine max, without acceleration. Real run time is longer.</p>
+      </section>
+
+      <section class="panel card card-key" aria-labelledby="airH">
+        <div class="card-head">
+          <h2 class="card-title" id="airH">Air moves</h2>
+          <span class="pill" id="airPill"></span>
+        </div>
+        <p class="lede">Rapids your CAM wrote as slow G1 feed moves. Only moves with nothing to cut get the new feed. Every cutting move keeps its own.</p>
+        <div class="feed-pair">
+          <div class="fp-cur">
+            <span class="k">Current feed</span>
+            <span class="v mono" id="airCur">—</span>
+            <span class="fine" id="airLen"></span>
+          </div>
+          <svg class="arrow" viewBox="0 0 22 14" aria-hidden="true"><path d="M1 7h19M14 1l6 6-6 6"></path></svg>
+          <div class="fp-new">
+            <label class="k" for="airFeed">New feed</label>
+            <div class="input-unit big"><input id="airFeed" type="number" min="0" step="100" inputmode="decimal"><span class="unit" id="airUnit">mm/min</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="safeZ">Safe height (Z)</label>
+          <div class="input-unit"><input id="safeZ" type="number" step="0.1" inputmode="decimal"><span class="unit" id="safeUnit">mm</span></div>
+          <button class="btn btn-small" id="safeAuto" type="button">Auto</button>
+        </div>
+        <p class="fine" id="safeHint"></p>
+        <label class="check"><input type="checkbox" id="incRetract" checked><span>Also speed up straight-up retracts out of the cut. <span class="fine">Turn this off if you ream or bore with a feed-out.</span></span></label>
+        <p class="alert" id="airWarn" hidden></p>
+      </section>
+
+      <section class="panel card" aria-labelledby="outH">
+        <h2 class="card-title" id="outH">Output check</h2>
+        <div class="verify pending" id="verify"><strong>Checking the edited file…</strong></div>
+        <button class="btn btn-accent wide" id="downloadBtn2" type="button">Download <span class="mono" id="dlName"></span></button>
+        <p class="fine" id="previewNote" hidden>In this preview the file saves with an added .txt ending. Remove it before loading the file on the machine.</p>
+      </section>
+
+      <section class="panel card" aria-labelledby="feedsH">
+        <h2 class="card-title" id="feedsH">Programmed feeds</h2>
+        <p class="lede">Change any feed in the program by value. New values apply to cutting, plunge and retract moves; air moves use the feed above.</p>
+        <div class="table-wrap">
+          <table class="feeds">
+            <thead><tr><th scope="col">Current</th><th scope="col">Used by</th><th scope="col">New</th></tr></thead>
+            <tbody id="feedRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel card" aria-labelledby="infoH">
+        <h2 class="card-title" id="infoH">Program</h2>
+        <dl class="kv" id="info"></dl>
+        <ul class="notes" id="notes" hidden></ul>
+        <p class="fine">Everything runs in your browser. Your G-code is never uploaded unless you attach it to a bug report.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="drop" id="drop" hidden>Drop G-code to open</div>
+<div class="busy" id="busy" hidden>Reading program…</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog class="dlg" id="reportDlg" aria-labelledby="reportH">
+  <form class="dlg-body" id="reportForm" novalidate>
+    <div class="dlg-head">
+      <h2 id="reportH">Report a bug</h2>
+      <button class="icon-btn small" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l4 4 4-4 1 1-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4z"></path></svg>
+      </button>
+    </div>
+    <div class="kind-toggle" role="radiogroup" aria-label="Report type">
+      <label><input type="radio" name="kind" value="bug" id="kindBug" checked><span>Bug</span></label>
+      <label><input type="radio" name="kind" value="feature" id="kindFeature"><span>Feature request</span></label>
+    </div>
+    <div class="fld">
+      <label for="rTitle">Summary</label>
+      <input id="rTitle" type="text" maxlength="200" autocomplete="off" required>
+    </div>
+    <div class="fld">
+      <label for="rDetails" id="rDetailsLabel">What happened?</label>
+      <textarea id="rDetails" rows="6" maxlength="10000" required></textarea>
+    </div>
+    <div class="fld">
+      <label for="rContact">Your name or email <span class="fine">(optional, if you'd like a reply)</span></label>
+      <input id="rContact" type="text" maxlength="200" autocomplete="email">
+    </div>
+    <label class="check" id="rAttachRow"><input type="checkbox" id="rAttach"><span>Attach the program I have open <span class="fine" id="rAttachInfo"></span></span></label>
+    <details class="ctx">
+      <summary>Also sent: app version, browser and your current settings</summary>
+      <pre id="rCtx"></pre>
+    </details>
+    <input type="text" id="rWebsite" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p class="alert" id="rError" hidden></p>
+    <div class="dlg-foot">
+      <button class="btn" type="button" id="rCopy" hidden>Copy report</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn btn-accent" type="submit" id="rSend">Send report</button>
+    </div>
+  </form>
+  <div class="dlg-body" id="reportDone" hidden>
+    <div class="dlg-head"><h2>Thanks, it's in</h2></div>
+    <p id="reportDoneText"></p>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn btn-accent" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="howDlg" aria-labelledby="howH">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2 id="howH">How FeedFix works</h2>
+      <button class="icon-btn small" type="button" data-close aria-label="Close">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l4 4 4-4 1 1-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4z"></path></svg>
+      </button>
+    </div>
+    <div class="how">
+      <h3>The colours</h3>
+      <ul class="how-legend">
+        <li><span class="sw sw-rapid"></span><span><b>Rapid</b> G0 moves.</span></li>
+        <li><span class="sw sw-air"></span><span><b>Air move</b> a feed move with nothing to cut: completely at or above the safe height, or dropping straight back to a depth the tool already reached at that spot.</span></li>
+        <li><span class="sw sw-retract"></span><span><b>Retract</b> a straight-up move from the cut to the safe height.</span></li>
+        <li><span class="sw sw-plunge"></span><span><b>Plunge</b> a straight-down feed move into material.</span></li>
+        <li><span class="sw sw-cut"></span><span><b>Cut</b> every other feed move.</span></li>
+      </ul>
+      <h3>What gets faster</h3>
+      <p>Air moves, and retracts if that box is ticked, get the new feed. Plunges and cuts keep the feed your CAM gave them unless you change it under Programmed feeds. The tool path itself never changes: FeedFix only rewrites F numbers, and adds an F word where a move needs a different feed than the line before it.</p>
+      <h3>Safe height</h3>
+      <p>FeedFix finds the lowest retract or approach height that sits above every cutting move and shows it as a plane in the 3D view. If the stock is taller than the program expects, set it by hand to just above the top of your stock.</p>
+      <h3>The check</h3>
+      <p>Before every download the edited file is read back and compared move by move with the original. If any coordinate, arc or line differs, or any byte other than an F number changed, the download is blocked.</p>
+      <h3>Before you run it</h3>
+      <p>Dry-run or single-block the first run of an edited program and keep a hand on feed hold. Most controllers cap F at the machine's maximum feed, so a new feed above your machine's limit runs at the limit.</p>
+      <h3>Mouse and touch</h3>
+      <p>Drag to orbit, right-drag or Shift-drag to pan, scroll or pinch to zoom, double-click to fit. Click a move to jump to its line. Space plays or pauses the simulation.</p>
+    </div>
+    <div class="dlg-foot"><span class="spacer"></span><button class="btn btn-accent" type="button" data-close>Close</button></div>
+  </div>
+</dialog>
+<script>
+/*!
+ * FeedFix core: G-code parsing, move classification and byte-exact feed editing.
+ * No DOM access. Loads in the browser as window.GCodeCore and in Node via require().
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.GCodeCore = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // Move kinds
+  var KIND_RAPID = 0, KIND_LINE = 1, KIND_CW = 2, KIND_CCW = 3;
+  // Move classes (drawing colours and feed rules)
+  var CLS_RAPID = 0, CLS_AIR = 1, CLS_RETRACT = 2, CLS_PLUNGE = 3, CLS_CUT = 4;
+  // Move flags
+  var FLAG_CYCLE = 1, FLAG_HOME = 2, FLAG_SKIP = 4, FLAG_PROBE = 8, FLAG_GUESS = 16;
+  // How a block uses the modal feed
+  var USE_NONE = 0, USE_FEED = 1, USE_CYCLE = 2;
+
+  var TAU = Math.PI * 2;
+  var TOL = 1e-6;
+  // Word letter indices (A = 0)
+  var LF = 5, LI = 8, LJ = 9, LK = 10, LP = 15, LQ = 16, LR = 17, LS = 18, LT = 19, LX = 23, LY = 24, LZ = 25;
+
+  // ---------------------------------------------------------------------------
+  // Growable column store backed by typed arrays
+
+  function Store(fields, cap) {
+    this.n = 0;
+    this.cap = Math.max(cap | 0, 16);
+    this._fields = fields;
+    for (var k in fields) this[k] = new fields[k](this.cap);
+  }
+  Store.prototype.reserve = function (extra) {
+    var need = this.n + extra;
+    if (need <= this.cap) return;
+    var cap = Math.max(need, this.cap * 2);
+    for (var k in this._fields) {
+      var a = new this._fields[k](cap);
+      a.set(this[k]);
+      this[k] = a;
+    }
+    this.cap = cap;
+  };
+  Store.prototype.trim = function () {
+    for (var k in this._fields) this[k] = this[k].slice(0, this.n);
+    this.cap = this.n;
+  };
+
+  var MOVE_FIELDS = {
+    line: Int32Array, kind: Uint8Array, flags: Uint8Array,
+    x0: Float64Array, y0: Float64Array, z0: Float64Array,
+    x1: Float64Array, y1: Float64Array, z1: Float64Array,
+    feed: Float64Array, fmode: Uint8Array, inch: Uint8Array, spin: Float64Array,
+    arc: Int32Array, extra: Float64Array, epoch: Int32Array,
+    len: Float64Array, zmin: Float64Array, zmax: Float64Array
+  };
+  var ARC_FIELDS = {
+    ca: Float64Array, cb: Float64Array, r0: Float64Array, r1: Float64Array,
+    t0: Float64Array, sweep: Float64Array, plane: Uint8Array
+  };
+
+  // ---------------------------------------------------------------------------
+  // Numbers
+
+  var RN_END = -1, RN_NUM = -1;
+
+  // Reads a decimal number from bytes[p..end). Sets RN_NUM (first byte of the
+  // number, sign included) and RN_END (one past the last byte, -1 if none).
+  function readNum(b, p, end) {
+    while (p < end && (b[p] === 32 || b[p] === 9)) p++;
+    RN_NUM = p;
+    var neg = false;
+    if (p < end && (b[p] === 45 || b[p] === 43)) { neg = b[p] === 45; p++; }
+    var start = p, ip = 0, fr = 0, sc = 1, digits = 0, dot = false;
+    for (; p < end; p++) {
+      var c = b[p];
+      if (c >= 48 && c <= 57) {
+        digits++;
+        if (dot) { fr = fr * 10 + (c - 48); sc *= 10; } else ip = ip * 10 + (c - 48);
+      } else if (c === 46 && !dot) {
+        dot = true;
+      } else break;
+    }
+    if (digits === 0) { RN_END = -1; return NaN; }
+    RN_END = p;
+    var v;
+    // One correctly rounded division equals parseFloat for up to 15 digits.
+    if (digits <= 15) v = (ip * sc + fr) / sc;
+    else {
+      var s = '';
+      for (var i = start; i < p; i++) s += String.fromCharCode(b[i]);
+      v = parseFloat(s);
+    }
+    return neg ? -v : v;
+  }
+
+  function asciiBytes(s) {
+    var b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0xff;
+    return b;
+  }
+
+  // Parses a formatted number exactly the way parse() reads it back.
+  function asciiNum(s) {
+    var b = asciiBytes(s);
+    return readNum(b, 0, b.length);
+  }
+
+  function sameNum(a, b) {
+    if (a !== a) return b !== b;
+    if (b !== b) return false;
+    return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a));
+  }
+
+  function numStyle(b, a, e) {
+    var dotAt = -1;
+    for (var i = a; i < e; i++) if (b[i] === 46) { dotAt = i; break; }
+    if (dotAt < 0) return { dec: 0, dot: false, noLead: false };
+    var first = a;
+    if (b[first] === 45 || b[first] === 43) first++;
+    return { dec: e - dotAt - 1, dot: true, noLead: dotAt === first };
+  }
+
+  // Formats a feed value in a given token style, with enough decimals to read
+  // back as exactly the same number.
+  function formatNum(v, st) {
+    st = st || { dec: 0, dot: false, noLead: false };
+    var d = st.dec, s;
+    for (;;) {
+      s = v.toFixed(d);
+      if (d >= 6 || asciiNum(s) === v) break;
+      d++;
+    }
+    if (st.dot && s.indexOf('.') < 0) s += '.';
+    if (st.noLead && s.charAt(0) === '0' && s.charAt(1) === '.') s = s.slice(1);
+    return s;
+  }
+
+  function toBytes(input) {
+    if (input instanceof Uint8Array) return input;
+    if (input instanceof ArrayBuffer) return new Uint8Array(input);
+    if (typeof input === 'string') {
+      if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(input);
+      return asciiBytes(input);
+    }
+    throw new TypeError('Expected bytes or a string');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parser
+
+  function parse(input, opts) {
+    opts = opts || {};
+    var bytes = toBytes(input);
+    var n = bytes.length, i, c;
+
+    // Line table: \n, \r\n and lone \r all end a line.
+    var lc = 0;
+    for (i = 0; i < n; i++) {
+      c = bytes[i];
+      if (c === 10 || (c === 13 && bytes[i + 1] !== 10)) lc++;
+    }
+    if (n && bytes[n - 1] !== 10 && bytes[n - 1] !== 13) lc++;
+    var lineStart = new Int32Array(lc), lineEnd = new Int32Array(lc);
+    var li = 0, s0 = 0;
+    for (i = 0; i < n; i++) {
+      c = bytes[i];
+      if (c === 10 || c === 13) {
+        lineStart[li] = s0; lineEnd[li] = i; li++;
+        if (c === 13 && bytes[i + 1] === 10) i++;
+        s0 = i + 1;
+      }
+    }
+    if (s0 < n) { lineStart[li] = s0; lineEnd[li] = n; li++; }
+
+    var lineF = new Int32Array(lc).fill(-1);   // byte offset of the F letter
+    var lineFNum = new Int32Array(lc);         // first byte of the F number
+    var lineFEnd = new Int32Array(lc);         // one past the F number
+    var lineFVal = new Float64Array(lc);
+    var lineCodeEnd = new Int32Array(lc);      // insertion point after the last word
+    var lineUse = new Uint8Array(lc);
+    var lineFMode = new Uint8Array(lc);
+    var lineInch = new Uint8Array(lc);
+    var lineSpace = new Uint8Array(lc);
+    var lineMove = new Int32Array(lc + 1);
+
+    var mv = new Store(MOVE_FIELDS, lc + 16);
+    var arcs = new Store(ARC_FIELDS, 64);
+
+    // Modal state
+    var motion = 0, cycle = 0, plane = 17, absMode = true, arcAbs = false, units = 21;
+    var dispInch = opts.inch === undefined ? undefined : !!opts.inch;
+    var feedMode = 94, modalF = NaN, spindle = 0, retMode = 98;
+    var px = NaN, py = NaN, pz = NaN, ox = 0, oy = 0, oz = 0;
+    var cycR = NaN, cycZ = NaN, cycQ = NaN, cycInit = NaN;
+    var ended = false, pendingTool = NaN, epoch = 0, curWcs = 540;
+
+    var warnings = [], warnIdx = {};
+    function warn(code, line, text) {
+      var w = warnIdx[code];
+      if (w) { w.count++; return; }
+      warnIdx[code] = w = { code: code, line: line, text: text, count: 1 };
+      warnings.push(w);
+    }
+    var tools = [], toolSeen = {}, wcs = {}, wcsCount = 0;
+    var fStyles = {}, fCount = 0, spindleMax = 0;
+
+    var has = new Uint8Array(26), val = new Float64Array(26);
+    var gl = [], ml = [];
+
+    function addMove(kind, flags, line, ax, ay, az, bx, by, bz, arcIdx, feed) {
+      mv.reserve(1);
+      var k = mv.n++;
+      mv.line[k] = line; mv.kind[k] = kind; mv.flags[k] = flags;
+      mv.x0[k] = ax; mv.y0[k] = ay; mv.z0[k] = az;
+      mv.x1[k] = bx; mv.y1[k] = by; mv.z1[k] = bz;
+      mv.feed[k] = feed; mv.fmode[k] = feedMode; mv.inch[k] = units === 20 ? 1 : 0;
+      mv.spin[k] = spindle; mv.arc[k] = arcIdx; mv.extra[k] = 0; mv.epoch[k] = epoch;
+      return k;
+    }
+
+    for (li = 0; li < lc; li++) {
+      lineMove[li] = mv.n;
+      var ls = lineStart[li], le = lineEnd[li];
+      for (var q = 0; q < 26; q++) has[q] = 0;
+      gl.length = 0; ml.length = 0;
+      var fLetter = -1, fNum = -1, fEnd = -1, codeEnd = ls, spaced = 0, words = 0, bad = 0;
+      var p = ls;
+      while (p < le) {
+        c = bytes[p];
+        if (c === 32 || c === 9) { p++; continue; }
+        if (c === 40) { // ( comment )
+          var qq = p + 1;
+          while (qq < le && bytes[qq] !== 41) qq++;
+          p = qq < le ? qq + 1 : le;
+          continue;
+        }
+        if (c === 59) break;                       // ; comment
+        if (c === 37) { p++; continue; }           // % tape marks
+        if (c === 47 && words === 0) { p++; continue; } // block delete
+        var up = c & 0xdf;
+        if (up >= 65 && up <= 90) {
+          var v = readNum(bytes, p + 1, le);
+          if (RN_END < 0) { bad = 1; p++; continue; }
+          if (words > 0 && (bytes[p - 1] === 32 || bytes[p - 1] === 9)) spaced = 1;
+          var L = up - 65;
+          if (L === 6) gl.push(Math.round(v * 10));
+          else if (L === 12) ml.push(Math.round(v * 10));
+          else {
+            has[L] = 1; val[L] = v;
+            if (L === LF) { fLetter = p; fNum = RN_NUM; fEnd = RN_END; }
+          }
+          words++;
+          p = RN_END;
+          codeEnd = p;
+          continue;
+        }
+        bad = 1; p++;
+      }
+      lineCodeEnd[li] = codeEnd;
+      lineSpace[li] = spaced;
+      lineFMode[li] = feedMode;
+      lineInch[li] = units === 20 ? 1 : 0;
+      if (bad) warn('syntax', li, 'Unsupported syntax (macro variables, expressions or checksums) was skipped.');
+      if (!words) continue;
+
+      var nonModal = 0, newMotion = -1, newCycle = -1, g;
+      for (var gi = 0; gi < gl.length; gi++) {
+        g = gl[gi];
+        switch (g) {
+          case 0: case 10: case 20: case 30: newMotion = g; newCycle = 0; break;
+          case 382: case 383: case 384: case 385: newMotion = g; newCycle = 0; break;
+          case 800: newCycle = 0; break;
+          case 730: case 810: case 820: case 830: case 840: case 850:
+          case 860: case 870: case 880: case 890: newCycle = g; break;
+          case 170: case 180: case 190: plane = g / 10; break;
+          case 200: units = 20; if (dispInch === undefined) dispInch = true; break;
+          case 210: units = 21; if (dispInch === undefined) dispInch = false; break;
+          case 900: absMode = true; break;
+          case 910: absMode = false; break;
+          case 901: arcAbs = true; break;
+          case 911: arcAbs = false; break;
+          case 930: case 940: case 950: feedMode = g / 10; break;
+          case 980: case 990: retMode = g / 10; break;
+          case 400: break;
+          case 410: case 420:
+            warn('comp', li, 'Cutter compensation (G41/G42) is on. The plot shows the programmed path, not the compensated one.');
+            break;
+          case 40: case 100: case 280: case 281: case 300: case 301:
+          case 520: case 530: case 920: case 921: case 922: case 923:
+            nonModal = g; break;
+          case 540: case 541: case 550: case 560: case 570: case 580: case 590:
+          case 591: case 592: case 593:
+            if (g !== curWcs) { curWcs = g; epoch++; }
+            if (!wcs[g]) { wcs[g] = 1; wcsCount++; }
+            if (wcsCount > 1) warn('wcs', li, 'More than one work offset is used. All of them are drawn in the same coordinate space.');
+            break;
+          case 680: case 681: case 510: case 511: case 160:
+            warn('xform', li, 'Coordinate rotation, scaling or polar mode (G68/G51/G16) is not applied in the plot.');
+            break;
+          case 90: case 150: case 430: case 431: case 440: case 490: case 500: case 690:
+          case 610: case 611: case 640: case 960: case 970: case 1030: case 1870: case 5: case 50:
+            break;
+          default:
+            warn('g' + g, li, 'G' + (g / 10) + ' is not supported and was ignored.');
+        }
+      }
+      lineFMode[li] = feedMode;
+      lineInch[li] = units === 20 ? 1 : 0;
+      if (newMotion >= 0) motion = newMotion;
+      if (newCycle >= 0 && newCycle !== cycle) { cycle = newCycle; cycInit = NaN; }
+
+      var axisWords = has[LX] || has[LY] || has[LZ];
+      if (dispInch === undefined && axisWords) dispInch = units === 20;
+      var k = (dispInch === undefined || (units === 20) === dispInch) ? 1 : (units === 20 ? 25.4 : 1 / 25.4);
+
+      if (has[LF]) {
+        if (feedMode !== 93) modalF = val[LF];
+        lineF[li] = fLetter; lineFNum[li] = fNum; lineFEnd[li] = fEnd; lineFVal[li] = val[LF];
+        var st = numStyle(bytes, fNum, fEnd);
+        var sk = st.dec + (st.dot ? 'd' : '') + (st.noLead ? 'n' : '');
+        fStyles[sk] = (fStyles[sk] || 0) + 1;
+        fCount++;
+      }
+      var blockF = feedMode === 93 ? (has[LF] ? val[LF] : NaN) : modalF;
+      if (has[LS]) { spindle = val[LS]; if (spindle > spindleMax) spindleMax = spindle; }
+      if (has[LT]) {
+        if (val[LT] !== pendingTool) epoch++;
+        pendingTool = val[LT];
+        if (!toolSeen[pendingTool]) { toolSeen[pendingTool] = 1; tools.push({ t: pendingTool, line: li }); }
+      }
+      if (has[0] || has[1] || has[2]) warn('rotary', li, 'Rotary axis words (A/B/C) are ignored in the plot.');
+      var endAfter = false;
+      for (var mi = 0; mi < ml.length; mi++) {
+        var m = ml[mi];
+        if (m === 20 || m === 300) endAfter = true;
+        else if (m === 60) epoch++;
+        else if (m === 980) warn('sub', li, 'Subprogram calls (M98) are not expanded. The plot follows the file top to bottom.');
+      }
+
+      var use = USE_NONE, tx, ty, tz;
+      if (nonModal) {
+        if (nonModal === 920 || nonModal === 921 || nonModal === 922 || nonModal === 520) epoch++;
+        if (nonModal === 920) {
+          if (has[LX] && px === px) ox = px - val[LX] * k;
+          if (has[LY] && py === py) oy = py - val[LY] * k;
+          if (has[LZ] && pz === pz) oz = pz - val[LZ] * k;
+        } else if (nonModal === 921 || nonModal === 922) {
+          ox = oy = oz = 0;
+        } else if (nonModal === 520) {
+          if (has[LX]) ox = val[LX] * k;
+          if (has[LY]) oy = val[LY] * k;
+          if (has[LZ]) oz = val[LZ] * k;
+        } else if (nonModal === 280 || nonModal === 300) {
+          if (axisWords) {
+            tx = has[LX] ? (absMode ? val[LX] * k + ox : px + val[LX] * k) : px;
+            ty = has[LY] ? (absMode ? val[LY] * k + oy : py + val[LY] * k) : py;
+            tz = has[LZ] ? (absMode ? val[LZ] * k + oz : pz + val[LZ] * k) : pz;
+            addMove(KIND_RAPID, FLAG_HOME, li, px, py, pz, tx, ty, tz, -1, blockF);
+            px = has[LX] ? NaN : tx; py = has[LY] ? NaN : ty; pz = has[LZ] ? NaN : tz;
+          } else {
+            px = py = pz = NaN;
+          }
+        } else if (nonModal === 530) {
+          if (has[LX]) px = NaN;
+          if (has[LY]) py = NaN;
+          if (has[LZ]) pz = NaN;
+          warn('g53', li, 'Machine-coordinate moves (G53) are not drawn. The path picks up again at the next known position.');
+        }
+      } else if (!ended) {
+        if (cycle) {
+          if (axisWords || has[LR]) {
+            if (cycInit !== cycInit) cycInit = pz;
+            if (has[LR]) cycR = absMode ? val[LR] * k + oz : cycInit + val[LR] * k;
+            if (has[LZ]) cycZ = absMode ? val[LZ] * k + oz : cycR + val[LZ] * k;
+            if (has[LQ]) cycQ = Math.abs(val[LQ] * k);
+            tx = has[LX] ? (absMode ? val[LX] * k + ox : px + val[LX] * k) : px;
+            ty = has[LY] ? (absMode ? val[LY] * k + oy : py + val[LY] * k) : py;
+            if (cycR !== cycR || cycZ !== cycZ) {
+              warn('cycle', li, 'A canned cycle is missing its R or Z value and was skipped.');
+            } else {
+              var z = pz;
+              if (!(z >= cycR)) { addMove(KIND_RAPID, FLAG_CYCLE, li, px, py, z, px, py, cycR, -1, blockF); z = cycR; }
+              addMove(KIND_RAPID, FLAG_CYCLE, li, px, py, z, tx, ty, z, -1, blockF);
+              if (z > cycR) addMove(KIND_RAPID, FLAG_CYCLE, li, tx, ty, z, tx, ty, cycR, -1, blockF);
+              var fm = addMove(KIND_LINE, FLAG_CYCLE, li, tx, ty, cycR, tx, ty, cycZ, -1, blockF);
+              if (cycle === 830 && cycQ > 0) {
+                var np = Math.ceil((cycR - cycZ) / cycQ - 1e-9);
+                if (np > 1) mv.extra[fm] = cycQ * np * (np - 1);
+              }
+              var feedOut = cycle === 840 || cycle === 850 || cycle === 890;
+              addMove(feedOut ? KIND_LINE : KIND_RAPID, FLAG_CYCLE, li, tx, ty, cycZ, tx, ty, cycR, -1, blockF);
+              var endZ = cycR;
+              if (retMode === 98 && cycInit > cycR) {
+                addMove(KIND_RAPID, FLAG_CYCLE, li, tx, ty, cycR, tx, ty, cycInit, -1, blockF);
+                endZ = cycInit;
+              }
+              px = tx; py = ty; pz = endZ;
+              use = USE_CYCLE;
+            }
+          }
+        } else if (motion === 0 || motion === 10 || motion >= 382) {
+          if (axisWords) {
+            tx = has[LX] ? (absMode ? val[LX] * k + ox : px + val[LX] * k) : px;
+            ty = has[LY] ? (absMode ? val[LY] * k + oy : py + val[LY] * k) : py;
+            tz = has[LZ] ? (absMode ? val[LZ] * k + oz : pz + val[LZ] * k) : pz;
+            var probe = motion >= 382;
+            if (probe) warn('probe', li, 'Probing moves (G38) are drawn to their programmed end point and are never sped up.');
+            addMove(motion === 0 ? KIND_RAPID : KIND_LINE, probe ? FLAG_PROBE : 0, li, px, py, pz, tx, ty, tz, -1, blockF);
+            px = tx; py = ty; pz = tz;
+            use = motion === 0 ? USE_NONE : USE_FEED;
+          }
+        } else if (motion === 20 || motion === 30) {
+          if (axisWords || has[LI] || has[LJ] || has[LK] || has[LR]) {
+            tx = has[LX] ? (absMode ? val[LX] * k + ox : px + val[LX] * k) : px;
+            ty = has[LY] ? (absMode ? val[LY] * k + oy : py + val[LY] * k) : py;
+            tz = has[LZ] ? (absMode ? val[LZ] * k + oz : pz + val[LZ] * k) : pz;
+            var ai = arcCenter(motion === 20, li, px, py, pz, tx, ty, tz, k);
+            addMove(ai >= 0 ? (motion === 20 ? KIND_CW : KIND_CCW) : KIND_LINE, 0, li, px, py, pz, tx, ty, tz, ai, blockF);
+            px = tx; py = ty; pz = tz;
+            use = USE_FEED;
+          }
+        }
+      }
+      lineUse[li] = use;
+      if (endAfter) ended = true;
+    }
+    lineMove[lc] = mv.n;
+
+    // Arc geometry in the active plane. Returns the arc index, or -1 when the
+    // start is unknown and the move has to be drawn as a straight line.
+    function arcCenter(cw, line, sx, sy, sz, ex, ey, ez, k) {
+      var s = [sx, sy, sz], e = [ex, ey, ez], off = [ox, oy, oz];
+      var A, B, oA, oB;
+      if (plane === 18) { A = 2; B = 0; oA = LK; oB = LI; }
+      else if (plane === 19) { A = 1; B = 2; oA = LJ; oB = LK; }
+      else { A = 0; B = 1; oA = LI; oB = LJ; }
+      var sa = s[A], sb = s[B], ea = e[A], eb = e[B];
+      if (sa !== sa || sb !== sb || ea !== ea || eb !== eb) {
+        warn('arcstart', line, 'An arc starts from an unknown position and is drawn as a straight line.');
+        return -1;
+      }
+      var ca, cb;
+      if (has[LR] && !has[oA] && !has[oB]) {
+        var r = val[LR] * k, dx = ea - sa, dy = eb - sb, d = Math.sqrt(dx * dx + dy * dy);
+        if (d < TOL) {
+          warn('arcR0', line, 'An R-format arc has the same start and end point and is drawn as a point.');
+          return -1;
+        }
+        var h2 = r * r - d * d / 4;
+        if (h2 < 0) {
+          if (h2 < -1e-4 * r * r) warn('arcR', line, 'An R-format arc radius is smaller than half the chord; its center was placed on the chord.');
+          h2 = 0;
+        }
+        var h = Math.sqrt(h2), nx = -dy / d, ny = dx / d;
+        var side = ((!cw) === (r > 0)) ? 1 : -1;
+        ca = (sa + ea) / 2 + side * h * nx;
+        cb = (sb + eb) / 2 + side * h * ny;
+      } else {
+        var ia = has[oA] ? val[oA] * k : 0, ib = has[oB] ? val[oB] * k : 0;
+        if (arcAbs) { ca = ia + off[A]; cb = ib + off[B]; }
+        else { ca = sa + ia; cb = sb + ib; }
+      }
+      var r0 = Math.sqrt((sa - ca) * (sa - ca) + (sb - cb) * (sb - cb));
+      var r1 = Math.sqrt((ea - ca) * (ea - ca) + (eb - cb) * (eb - cb));
+      var t0 = Math.atan2(sb - cb, sa - ca), t1 = Math.atan2(eb - cb, ea - ca);
+      var sw = t1 - t0;
+      var same = Math.abs(ea - sa) <= TOL && Math.abs(eb - sb) <= TOL;
+      if (same) sw = cw ? -TAU : TAU;
+      else if (cw) { if (sw >= 0) sw -= TAU; }
+      else if (sw <= 0) sw += TAU;
+      if (has[LP] && val[LP] > 1) sw += (cw ? -TAU : TAU) * (Math.round(val[LP]) - 1);
+      if (Math.abs(r0 - r1) > Math.max(0.002 * (dispInch ? 1 / 25.4 : 1), 0.001 * r0)) {
+        warn('arcRadius', line, 'Some arcs have a start and end radius that differ; they are drawn as spirals.');
+      }
+      arcs.reserve(1);
+      var ai = arcs.n++;
+      arcs.ca[ai] = ca; arcs.cb[ai] = cb; arcs.r0[ai] = r0; arcs.r1[ai] = r1;
+      arcs.t0[ai] = t0; arcs.sweep[ai] = sw; arcs.plane[ai] = plane;
+      return ai;
+    }
+
+    mv.trim();
+    arcs.trim();
+
+    // Unknown start positions (program start, after homing or G53) are filled
+    // from the next known position so the plot starts where the path starts.
+    fillAxis(mv.x0, mv.x1, mv.n, mv.flags);
+    fillAxis(mv.y0, mv.y1, mv.n, mv.flags);
+    fillAxis(mv.z0, mv.z1, mv.n, mv.flags);
+
+    var P = {
+      bytes: bytes,
+      lineCount: lc, lineStart: lineStart, lineEnd: lineEnd,
+      lineF: lineF, lineFNum: lineFNum, lineFEnd: lineFEnd, lineFVal: lineFVal,
+      lineCodeEnd: lineCodeEnd, lineUse: lineUse, lineFMode: lineFMode, lineInch: lineInch,
+      lineSpace: lineSpace, lineMove: lineMove,
+      moves: mv, arcs: arcs,
+      inch: !!dispInch,
+      warnings: warnings, tools: tools, spindleMax: spindleMax,
+      fStyle: dominantStyle(fStyles), fCount: fCount
+    };
+    measure(P);
+    return P;
+  }
+
+  // Moves with a filled-in coordinate are flagged: they are drawn, but never
+  // sped up and never trusted as a place the tool has been.
+  function fillAxis(s, e, n, flags) {
+    var i, next = NaN, prev = NaN;
+    for (i = 0; i < n; i++) if (e[i] !== e[i] || s[i] !== s[i]) flags[i] |= FLAG_GUESS;
+    for (i = n - 1; i >= 0; i--) { if (e[i] === e[i]) next = e[i]; else e[i] = next; }
+    for (i = 0; i < n; i++) { if (e[i] === e[i]) prev = e[i]; else e[i] = prev; }
+    for (i = 0; i < n; i++) {
+      if (e[i] !== e[i]) e[i] = 0;
+      if (s[i] !== s[i]) s[i] = e[i];
+    }
+  }
+
+  function dominantStyle(counts) {
+    var best = null, bestN = -1;
+    for (var key in counts) if (counts[key] > bestN) { bestN = counts[key]; best = key; }
+    if (!best) return { dec: 0, dot: false, noLead: false };
+    return { dec: parseInt(best, 10), dot: best.indexOf('d') >= 0, noLead: best.indexOf('n') >= 0 };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Geometry
+
+  // Maps plane coordinates (a, b, normal) back to x, y, z.
+  function planeToXYZ(plane, a, b, nrm, out) {
+    if (plane === 18) { out[0] = b; out[1] = nrm; out[2] = a; }
+    else if (plane === 19) { out[0] = nrm; out[1] = a; out[2] = b; }
+    else { out[0] = a; out[1] = b; out[2] = nrm; }
+    return out;
+  }
+
+  function arcNormal(plane) { return plane === 18 ? 1 : plane === 19 ? 0 : 2; }
+
+  // Point at parameter t (0..1) along move m, written into out.
+  function pointAt(P, m, t, out) {
+    out = out || [0, 0, 0];
+    var mv = P.moves, ai = mv.arc[m];
+    if (ai < 0 || t <= 0 || t >= 1) {
+      if (t >= 1) { out[0] = mv.x1[m]; out[1] = mv.y1[m]; out[2] = mv.z1[m]; }
+      else if (t <= 0) { out[0] = mv.x0[m]; out[1] = mv.y0[m]; out[2] = mv.z0[m]; }
+      else {
+        out[0] = mv.x0[m] + (mv.x1[m] - mv.x0[m]) * t;
+        out[1] = mv.y0[m] + (mv.y1[m] - mv.y0[m]) * t;
+        out[2] = mv.z0[m] + (mv.z1[m] - mv.z0[m]) * t;
+      }
+      return out;
+    }
+    var A = P.arcs, pl = A.plane[ai], th = A.t0[ai] + A.sweep[ai] * t;
+    var r = A.r0[ai] + (A.r1[ai] - A.r0[ai]) * t;
+    var nIdx = arcNormal(pl);
+    var s = nIdx === 0 ? mv.x0[m] : nIdx === 1 ? mv.y0[m] : mv.z0[m];
+    var e = nIdx === 0 ? mv.x1[m] : nIdx === 1 ? mv.y1[m] : mv.z1[m];
+    return planeToXYZ(pl, A.ca[ai] + r * Math.cos(th), A.cb[ai] + r * Math.sin(th), s + (e - s) * t, out);
+  }
+
+  function arcSegments(P, m) {
+    var ai = P.moves.arc[m], A = P.arcs;
+    var rMax = Math.max(A.r0[ai], A.r1[ai]);
+    var tol = P.inch ? 0.0004 : 0.01;
+    var step = rMax > tol ? 2 * Math.acos(1 - tol / rMax) : Math.PI / 2;
+    step = Math.min(step, Math.PI / 12);
+    return Math.max(1, Math.min(1440, Math.ceil(Math.abs(A.sweep[ai]) / step)));
+  }
+
+  // Lengths, Z range and bounding box of every move.
+  function measure(P) {
+    var mv = P.moves, n = mv.n, A = P.arcs;
+    var bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    var pt = [0, 0, 0];
+    function grow(x, y, z) {
+      if (x < bb[0]) bb[0] = x; if (y < bb[1]) bb[1] = y; if (z < bb[2]) bb[2] = z;
+      if (x > bb[3]) bb[3] = x; if (y > bb[4]) bb[4] = y; if (z > bb[5]) bb[5] = z;
+    }
+    for (var i = 0; i < n; i++) {
+      var dx = mv.x1[i] - mv.x0[i], dy = mv.y1[i] - mv.y0[i], dz = mv.z1[i] - mv.z0[i];
+      var zmin = Math.min(mv.z0[i], mv.z1[i]), zmax = Math.max(mv.z0[i], mv.z1[i]);
+      var ai = mv.arc[i], len;
+      if (ai < 0) {
+        len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      } else {
+        var pl = A.plane[ai], nIdx = arcNormal(pl);
+        var dn = nIdx === 0 ? dx : nIdx === 1 ? dy : dz;
+        var arcLen = Math.abs(A.sweep[ai]) * (A.r0[ai] + A.r1[ai]) / 2;
+        len = Math.sqrt(arcLen * arcLen + dn * dn);
+        // Quadrant points inside the sweep bound the arc exactly.
+        var ta = A.t0[ai], tb = ta + A.sweep[ai];
+        var lo = Math.min(ta, tb), hi = Math.max(ta, tb);
+        for (var qk = Math.ceil(lo / (Math.PI / 2)); qk * (Math.PI / 2) <= hi; qk++) {
+          var t = (qk * (Math.PI / 2) - ta) / A.sweep[ai];
+          if (t <= 0 || t >= 1) continue;
+          pointAt(P, i, t, pt);
+          if (pt[2] < zmin) zmin = pt[2];
+          if (pt[2] > zmax) zmax = pt[2];
+          if (!(mv.flags[i] & FLAG_SKIP)) grow(pt[0], pt[1], pt[2]);
+        }
+      }
+      mv.len[i] = len; mv.zmin[i] = zmin; mv.zmax[i] = zmax;
+      if (len < 1e-9 && mv.extra[i] === 0) mv.flags[i] |= FLAG_SKIP;
+      if (!(mv.flags[i] & FLAG_SKIP)) {
+        grow(mv.x0[i], mv.y0[i], mv.z0[i]);
+        grow(mv.x1[i], mv.y1[i], mv.z1[i]);
+      }
+    }
+    if (bb[0] === Infinity) bb = [0, 0, 0, 0, 0, 0];
+    P.bbox = { minX: bb[0], minY: bb[1], minZ: bb[2], maxX: bb[3], maxY: bb[4], maxZ: bb[5] };
+  }
+
+  // Line segments for drawing: positions relative to the bbox centre (Float32),
+  // the owning move of each segment, and distance along the move (for dashes).
+  function buildSegments(P) {
+    var mv = P.moves, n = mv.n, i, total = 0;
+    var counts = new Int32Array(n);
+    for (i = 0; i < n; i++) {
+      if (mv.flags[i] & FLAG_SKIP) continue;
+      counts[i] = mv.arc[i] >= 0 ? arcSegments(P, i) : 1;
+      total += counts[i];
+    }
+    var b = P.bbox;
+    var ox = (b.minX + b.maxX) / 2, oy = (b.minY + b.maxY) / 2, oz = (b.minZ + b.maxZ) / 2;
+    var pos = new Float32Array(total * 6), move = new Int32Array(total), dist = new Float32Array(total * 2);
+    var w = 0, a = [0, 0, 0], c = [0, 0, 0];
+    for (i = 0; i < n; i++) {
+      var cnt = counts[i];
+      if (!cnt) continue;
+      a[0] = mv.x0[i]; a[1] = mv.y0[i]; a[2] = mv.z0[i];
+      var d = 0;
+      for (var s = 1; s <= cnt; s++) {
+        pointAt(P, i, s === cnt ? 1 : s / cnt, c);
+        var j = w * 6;
+        pos[j] = a[0] - ox; pos[j + 1] = a[1] - oy; pos[j + 2] = a[2] - oz;
+        pos[j + 3] = c[0] - ox; pos[j + 4] = c[1] - oy; pos[j + 5] = c[2] - oz;
+        var sl = Math.sqrt((c[0] - a[0]) * (c[0] - a[0]) + (c[1] - a[1]) * (c[1] - a[1]) + (c[2] - a[2]) * (c[2] - a[2]));
+        dist[w * 2] = d; dist[w * 2 + 1] = d + sl; d += sl;
+        move[w] = i;
+        w++;
+        a[0] = c[0]; a[1] = c[1]; a[2] = c[2];
+      }
+    }
+    return { count: total, pos: pos, move: move, dist: dist, origin: [ox, oy, oz] };
+  }
+
+  // Polyline of one move in world coordinates, up to parameter tEnd.
+  function movePolyline(P, m, tEnd) {
+    if (tEnd === undefined) tEnd = 1;
+    var cnt = P.moves.arc[m] >= 0 ? arcSegments(P, m) : 1;
+    var pts = [], pt;
+    for (var s = 0; s <= cnt; s++) {
+      var t = s / cnt;
+      if (t > tEnd) { pts.push(pointAt(P, m, tEnd, [0, 0, 0])); break; }
+      pt = pointAt(P, m, s === cnt ? 1 : t, [0, 0, 0]);
+      pts.push(pt);
+    }
+    return pts;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Classification
+
+  function isVertical(mv, i) {
+    var dx = mv.x1[i] - mv.x0[i], dy = mv.y1[i] - mv.y0[i], dz = mv.z1[i] - mv.z0[i];
+    return mv.arc[i] < 0 && Math.abs(dz) > TOL && Math.sqrt(dx * dx + dy * dy) <= Math.max(TOL, 0.01 * Math.abs(dz));
+  }
+
+  // Colour and feed class of every move for a given safe height.
+  // Air moves are completely at or above the safe height, or drop straight back
+  // down a column the same tool has already been to at that exact XY (peck
+  // re-entries, going back into a pocket). Nothing can be in the way of those.
+  function classify(P, safeZ, out) {
+    var mv = P.moves, n = mv.n, cls = out && out.length === n ? out : new Uint8Array(n);
+    var zs = safeZ === null || safeZ === undefined || safeZ !== safeZ ? Infinity : safeZ;
+    var q = P.inch ? 1e5 : 1e4;
+    var deepest = new Map(), epoch = -1;
+    for (var i = 0; i < n; i++) {
+      var kind = mv.kind[i], f = mv.flags[i];
+      if (mv.epoch[i] !== epoch) { deepest.clear(); epoch = mv.epoch[i]; }
+      var key = (Math.round(mv.x1[i] * q) + 33554432) * 67108864 + (Math.round(mv.y1[i] * q) + 33554432);
+      var c;
+      if (kind === KIND_RAPID) c = CLS_RAPID;
+      else if (f & FLAG_CYCLE) c = CLS_PLUNGE;
+      else if (mv.zmin[i] >= zs - TOL) c = CLS_AIR;
+      else if (isVertical(mv, i)) {
+        var dz = mv.z1[i] - mv.z0[i];
+        if (dz > 0) c = mv.z1[i] >= zs - TOL ? CLS_RETRACT : CLS_CUT;
+        else {
+          var been = deepest.get(key);
+          c = been !== undefined && mv.z1[i] >= been - TOL && mv.x1[i] === mv.x0[i] && mv.y1[i] === mv.y0[i] ? CLS_AIR : CLS_PLUNGE;
+        }
+      } else c = CLS_CUT;
+      cls[i] = c;
+      if (!(f & FLAG_GUESS)) {
+        var d = deepest.get(key);
+        if (d === undefined || mv.z1[i] < d) deepest.set(key, mv.z1[i]);
+      }
+    }
+    return cls;
+  }
+
+  // Finds the lowest height that is safely above every cutting move.
+  // Air heights are only trusted top-down. The clearance height the program
+  // retracts to seeds the set (G0 levels do not: lasers and plasmas rapid at
+  // their cutting height). Every approach that descends in stages from a known
+  // air height then adds its stops (retract and feed heights). A horizontal run
+  // only counts as a traverse when it follows a retract at a known air height,
+  // so tab crossings never qualify. Everything else is cutting evidence, with
+  // plunges counted at their bottom, and the answer is the lowest air height
+  // above all of it.
+  function detectSafeZ(P) {
+    var mv = P.moves, n = mv.n, i, s, m;
+    var sig = [];
+    for (i = 0; i < n; i++) if (!(mv.flags[i] & (FLAG_SKIP | FLAG_CYCLE | FLAG_HOME | FLAG_GUESS))) sig.push(i);
+    function vert(j) {
+      var dx = mv.x1[j] - mv.x0[j], dy = mv.y1[j] - mv.y0[j];
+      return mv.arc[j] < 0 && Math.abs(mv.z1[j] - mv.z0[j]) > TOL && Math.sqrt(dx * dx + dy * dy) <= TOL;
+    }
+    function down(j) { return vert(j) && mv.z1[j] < mv.z0[j]; }
+    function up(j) { return vert(j) && mv.z1[j] > mv.z0[j]; }
+    function horiz(j) { return mv.arc[j] < 0 && Math.abs(mv.z1[j] - mv.z0[j]) <= TOL; }
+    function joined(a, b) {
+      return Math.abs(mv.x1[a] - mv.x0[b]) <= TOL && Math.abs(mv.y1[a] - mv.y0[b]) <= TOL && Math.abs(mv.z1[a] - mv.z0[b]) <= TOL;
+    }
+    var air = new Map();
+    function key(z) { return Math.round(z * 1e5); }
+    function add(z) { var k = key(z); if (air.has(k)) return false; air.set(k, z); return true; }
+    function isAir(z) { return air.has(key(z)); }
+
+    var maxZ = -Infinity;
+    for (s = 0; s < sig.length; s++) {
+      m = sig[s];
+      if (mv.z0[m] > maxZ) maxZ = mv.z0[m];
+      if (mv.z1[m] > maxZ) maxZ = mv.z1[m];
+    }
+    for (s = 0; s < sig.length; s++) {
+      m = sig[s];
+      if (up(m) && Math.abs(mv.z1[m] - maxZ) <= TOL) { add(maxZ); break; }
+    }
+
+    var inRun = new Uint8Array(n), approach = new Uint8Array(n);
+    // Follows a staged descent starting at sig[c]; its stops are air heights.
+    function chain(c) {
+      var grew = false, first = c;
+      while (c < sig.length && down(sig[c]) && (c === first || joined(sig[c - 1], sig[c]))) {
+        if (add(mv.z0[sig[c]])) grew = true;
+        if (c + 1 < sig.length && down(sig[c + 1]) && joined(sig[c], sig[c + 1])) approach[sig[c]] = 1;
+        c++;
+      }
+      return grew;
+    }
+    for (var pass = 0; pass < 32; pass++) {
+      var grew = false;
+      for (s = 0; s < sig.length; s++) {
+        m = sig[s];
+        var prev = s > 0 ? sig[s - 1] : -1;
+        var fresh = prev < 0 || !joined(prev, m);
+        if (horiz(m) && isAir(mv.z0[m]) && (fresh || up(prev) || mv.kind[m] === KIND_RAPID)) {
+          var e = s;
+          while (e + 1 < sig.length && horiz(sig[e + 1]) && joined(sig[e], sig[e + 1])) e++;
+          for (var q = s; q <= e; q++) inRun[sig[q]] = 1;
+          if (chain(e + 1)) grew = true;
+          s = e;
+        } else if (fresh && down(m) && isAir(mv.z0[m])) {
+          if (chain(s)) grew = true;
+        }
+      }
+      if (!grew) break;
+    }
+
+    var maxCut = -Infinity;
+    for (s = 0; s < sig.length; s++) {
+      m = sig[s];
+      if (mv.kind[m] === KIND_RAPID || inRun[m] || approach[m] || up(m)) continue;
+      var zc = down(m) ? mv.z1[m] : mv.zmax[m];
+      if (zc > maxCut) maxCut = zc;
+    }
+    var best = Infinity, levels = [];
+    air.forEach(function (z) {
+      levels.push(z);
+      if (z > maxCut + TOL && z < best) best = z;
+    });
+    levels.sort(function (a, b) { return b - a; });
+    return {
+      z: best === Infinity ? null : best,
+      maxCutZ: maxCut === -Infinity ? null : maxCut,
+      levels: levels
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Feed planning and output
+
+  function feedKey(v, mode, inch) { return mode + ':' + (inch ? 'in' : 'mm') + ':' + v; }
+
+  function isSpedUp(P, cls, m, includeRetracts) {
+    var c = cls[m];
+    if (P.moves.flags[m] & (FLAG_PROBE | FLAG_CYCLE | FLAG_GUESS)) return false;
+    return c === CLS_AIR || (includeRetracts && c === CLS_RETRACT);
+  }
+
+  // Works out which F words to change or add so that every move runs at its
+  // wanted feed, while touching nothing else in the file.
+  //   opts.airFeed          new feed for air moves, display units/min (0/NaN = unchanged)
+  //   opts.includeRetracts  also speed up straight-up retracts out of the cut
+  //   opts.feedMap          { feedKey: newValue } per programmed feed value
+  function planEdits(P, cls, opts) {
+    opts = opts || {};
+    var mv = P.moves, lc = P.lineCount, map = opts.feedMap || {};
+    var air = opts.airFeed > 0 ? opts.airFeed : 0;
+    var edits = [], moveFeed = new Float64Array(mv.n);
+    var outModal = NaN, origModal = NaN;
+    var bytes = P.bytes;
+
+    function mapped(v, mode, inch) {
+      if (v !== v) return v;
+      var t = map[feedKey(v, mode, inch)];
+      return t > 0 ? t : v;
+    }
+    function wantedValue(v, style) {
+      var txt = formatNum(v, style);
+      return { text: txt, val: asciiNum(txt) };
+    }
+
+    for (var li = 0; li < lc; li++) {
+      var m0 = P.lineMove[li], m1 = P.lineMove[li + 1], m;
+      var mode = P.lineFMode[li], inch = P.lineInch[li];
+      var hasF = P.lineF[li] >= 0, fv = P.lineFVal[li];
+      if (mode === 93) {
+        for (m = m0; m < m1; m++) moveFeed[m] = mv.feed[m];
+        outModal = NaN; origModal = NaN;
+        continue;
+      }
+      if (hasF) origModal = fv;
+      var use = P.lineUse[li], want = NaN;
+      if (use !== USE_NONE) {
+        var fm = m0;
+        while (fm < m1 && mv.kind[fm] === KIND_RAPID) fm++;
+        if (use === USE_FEED && air && mode === 94 && fm < m1 && isSpedUp(P, cls, fm, opts.includeRetracts)) {
+          var k = inch === (P.inch ? 1 : 0) ? 1 : (inch ? 1 / 25.4 : 25.4);
+          want = Math.round(air * k * 1e4) / 1e4;
+        } else {
+          want = mapped(origModal, mode, inch);
+        }
+      }
+      if (hasF) {
+        var target = use !== USE_NONE ? want : mapped(fv, mode, inch);
+        if (target === target && !sameNum(target, fv)) {
+          var w1 = wantedValue(target, numStyle(bytes, P.lineFNum[li], P.lineFEnd[li]));
+          edits.push({ line: li, pos: P.lineFNum[li], end: P.lineFEnd[li], text: w1.text, from: fv, to: w1.val, insert: false });
+          outModal = w1.val;
+        } else {
+          outModal = fv;
+        }
+      } else if (use !== USE_NONE && want === want && !sameNum(want, outModal)) {
+        var w2 = wantedValue(want, P.fStyle);
+        edits.push({ line: li, pos: P.lineCodeEnd[li], end: P.lineCodeEnd[li], text: (P.lineSpace[li] ? ' F' : 'F') + w2.text, from: outModal, to: w2.val, insert: true });
+        outModal = w2.val;
+      }
+      for (m = m0; m < m1; m++) moveFeed[m] = outModal;
+    }
+    return { edits: edits, moveFeed: moveFeed };
+  }
+
+  function buildOutput(bytes, edits) {
+    var extra = 0, i, e;
+    for (i = 0; i < edits.length; i++) extra += edits[i].text.length - (edits[i].end - edits[i].pos);
+    var out = new Uint8Array(bytes.length + extra);
+    var r = 0, w = 0;
+    for (i = 0; i < edits.length; i++) {
+      e = edits[i];
+      out.set(bytes.subarray(r, e.pos), w); w += e.pos - r;
+      for (var j = 0; j < e.text.length; j++) out[w++] = e.text.charCodeAt(j);
+      r = e.end;
+    }
+    out.set(bytes.subarray(r), w);
+    return out;
+  }
+
+  var GEOM_KEYS = ['kind', 'flags', 'line', 'x0', 'y0', 'z0', 'x1', 'y1', 'z1', 'arc', 'fmode', 'inch'];
+  var ARC_KEYS = ['ca', 'cb', 'r0', 'r1', 't0', 'sweep', 'plane'];
+
+  // Re-parses the edited program and proves the toolpath is identical and every
+  // move runs at the planned feed.
+  function verify(P, out, plan) {
+    var Q = parse(out, { inch: P.inch });
+    var res = { ok: true, moves: P.moves.n, lines: P.lineCount, geometry: 0, feeds: 0, bytes: 0, changedLines: 0, first: null };
+    function fail(kind, m) {
+      res.ok = false;
+      res[kind]++;
+      if (!res.first) res.first = { kind: kind, move: m, line: m >= 0 ? P.moves.line[m] : -1 };
+    }
+    if (Q.lineCount !== P.lineCount || Q.moves.n !== P.moves.n || Q.arcs.n !== P.arcs.n) {
+      fail('geometry', -1);
+      return res;
+    }
+    var a = P.moves, b = Q.moves, i, k;
+    for (i = 0; i < a.n; i++) {
+      for (k = 0; k < GEOM_KEYS.length; k++) {
+        var key = GEOM_KEYS[k];
+        if (!Object.is(a[key][i], b[key][i])) { fail('geometry', i); break; }
+      }
+      var fa = plan.moveFeed[i], fb = b.feed[i];
+      if (!(a.kind[i] === KIND_RAPID && !(a.flags[i] & FLAG_CYCLE)) && !sameNum(fa, fb)) fail('feeds', i);
+    }
+    for (i = 0; i < P.arcs.n; i++) {
+      for (k = 0; k < ARC_KEYS.length; k++) {
+        if (!Object.is(P.arcs[ARC_KEYS[k]][i], Q.arcs[ARC_KEYS[k]][i])) { fail('geometry', -1); break; }
+      }
+    }
+    // Every byte outside the edited F words must be untouched.
+    var src = P.bytes, r = 0, w = 0, e, j, lastLine = -1;
+    for (i = 0; i <= plan.edits.length; i++) {
+      e = plan.edits[i];
+      var stop = e ? e.pos : src.length;
+      for (j = r; j < stop; j++) if (src[j] !== out[w + j - r]) { fail('bytes', -1); break; }
+      w += stop - r;
+      if (!e) break;
+      w += e.text.length;
+      r = e.end;
+      if (e.line !== lastLine) { res.changedLines++; lastLine = e.line; }
+    }
+    if (w !== out.length) fail('bytes', -1);
+    return res;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Time and summaries
+
+  // Minutes per move. feedArr overrides programmed feeds (for the edited file).
+  function moveTimes(P, feedArr, maxRate) {
+    var mv = P.moves, n = mv.n, t = new Float64Array(n);
+    var rate = maxRate > 0 ? maxRate : Infinity;
+    for (var i = 0; i < n; i++) {
+      var len = mv.len[i], ex = mv.extra[i];
+      if (len === 0 && ex === 0) continue;
+      if (mv.kind[i] === KIND_RAPID) { t[i] = (len + ex) / rate; continue; }
+      var raw = feedArr ? feedArr[i] : mv.feed[i], mode = mv.fmode[i];
+      if (mode === 93) { t[i] = raw > 0 ? 1 / raw : len / rate; continue; }
+      var k = (mv.inch[i] === 1) === P.inch ? 1 : (mv.inch[i] ? 25.4 : 1 / 25.4);
+      var f = mode === 95 ? raw * mv.spin[i] * k : raw * k;
+      var eff = f > 0 ? Math.min(f, rate) : rate;
+      t[i] = len / eff + ex / rate;
+    }
+    return t;
+  }
+
+  function summarize(P, cls, tA, tB) {
+    var mv = P.moves, out = [];
+    for (var c = 0; c < 5; c++) out.push({ count: 0, len: 0, tA: 0, tB: 0 });
+    var totalA = 0, totalB = 0;
+    for (var i = 0; i < mv.n; i++) {
+      var o = out[cls[i]];
+      if (!(mv.flags[i] & FLAG_SKIP)) { o.count++; o.len += mv.len[i]; }
+      o.tA += tA[i]; o.tB += tB[i];
+      totalA += tA[i]; totalB += tB[i];
+    }
+    return { byClass: out, totalA: totalA, totalB: totalB };
+  }
+
+  // One row per programmed feed value, with how the moves at that feed are used.
+  function feedTable(P, cls, tA) {
+    var mv = P.moves, rows = {}, list = [];
+    for (var i = 0; i < mv.n; i++) {
+      if (mv.kind[i] === KIND_RAPID) continue;
+      var v = mv.feed[i];
+      if (v !== v) continue;
+      var key = feedKey(v, mv.fmode[i], mv.inch[i]);
+      var r = rows[key];
+      if (!r) {
+        rows[key] = r = { key: key, value: v, mode: mv.fmode[i], inch: !!mv.inch[i], moves: 0, len: 0, time: 0, byClass: [0, 0, 0, 0, 0], firstLine: mv.line[i] };
+        list.push(r);
+      }
+      if (mv.flags[i] & FLAG_SKIP) continue;
+      r.moves++; r.len += mv.len[i]; r.time += tA[i]; r.byClass[cls[i]]++;
+    }
+    list.sort(function (a, b) { return a.mode - b.mode || a.value - b.value; });
+    return list;
+  }
+
+  return {
+    KIND: { RAPID: KIND_RAPID, LINE: KIND_LINE, CW: KIND_CW, CCW: KIND_CCW },
+    CLS: { RAPID: CLS_RAPID, AIR: CLS_AIR, RETRACT: CLS_RETRACT, PLUNGE: CLS_PLUNGE, CUT: CLS_CUT },
+    FLAG: { CYCLE: FLAG_CYCLE, HOME: FLAG_HOME, SKIP: FLAG_SKIP, PROBE: FLAG_PROBE, GUESS: FLAG_GUESS },
+    USE: { NONE: USE_NONE, FEED: USE_FEED, CYCLE: USE_CYCLE },
+    parse: parse,
+    classify: classify,
+    detectSafeZ: detectSafeZ,
+    planEdits: planEdits,
+    buildOutput: buildOutput,
+    verify: verify,
+    moveTimes: moveTimes,
+    summarize: summarize,
+    feedTable: feedTable,
+    feedKey: feedKey,
+    isSpedUp: isSpedUp,
+    buildSegments: buildSegments,
+    movePolyline: movePolyline,
+    pointAt: pointAt,
+    formatNum: formatNum,
+    asciiNum: asciiNum
+  };
+}));
+
+/*!
+ * FeedFix sample program: a demo plate job written the way CAM output looks
+ * when rapids are replaced by G1 moves at each operation's cutting feed.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.FeedFixSample = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  function makeSample() {
+    var out = [];
+    var st = { x: NaN, y: NaN, z: NaN, f: NaN };
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function num(v) {
+      var s = r3(v).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+      return s === '-0' ? '0' : s;
+    }
+    function emit(s) { out.push(s); }
+    function g1(x, y, z, f) {
+      var s = 'G1';
+      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
+      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
+      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
+      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
+      if (s !== 'G1') emit(s);
+    }
+    // i, j: arc centre relative to the start point
+    function arc(g, x, y, z, i, j, f) {
+      var s = g;
+      if (x !== undefined && r3(x) !== st.x) { st.x = r3(x); s += ' X' + num(x); }
+      if (y !== undefined && r3(y) !== st.y) { st.y = r3(y); s += ' Y' + num(y); }
+      if (z !== undefined && r3(z) !== st.z) { st.z = r3(z); s += ' Z' + num(z); }
+      s += ' I' + num(i) + ' J' + num(j);
+      if (f !== undefined && r3(f) !== st.f) { st.f = r3(f); s += ' F' + num(f); }
+      emit(s);
+    }
+
+    var CLEAR = 15, RETRACT = 5, FEEDH = 2;
+    var cx = 60, cy = 40;
+
+    emit('%');
+    emit('(DEMO FILE - NOT FOR MACHINING)');
+    emit('(MOTOR PLATE 120 X 80 X 12 - Z0 AT STOCK TOP)');
+    emit('(RAPIDS IN THIS FILE WERE WRITTEN AS G1 AT EACH CUTTING FEED)');
+    emit('(T1 D=6 CR=0 - ZMIN=-12.5 - FLAT END MILL)');
+    emit('G90 G94');
+    emit('G17');
+    emit('G21');
+
+    // Facing: zigzag at Z-0.5, entering from outside the stock
+    emit('');
+    emit('(FACE1)');
+    emit('T1');
+    emit('S16000 M3');
+    emit('G54');
+    var FF = 1500, FP = 500;
+    g1(-8, -1, undefined, FF);
+    g1(undefined, undefined, CLEAR);
+    g1(undefined, undefined, RETRACT);
+    g1(undefined, undefined, FEEDH);
+    g1(undefined, undefined, -0.5, FP);
+    for (var pass = 0, y = -1; y <= 81; pass++, y += 4.8) {
+      if (pass > 0) g1(undefined, y, undefined, FF);
+      g1(pass % 2 === 0 ? 128 : -8, undefined, undefined, FF);
+    }
+    g1(undefined, undefined, CLEAR);
+
+    // Pocket: helical entry, offset loops from the inside out, three depths
+    emit('');
+    emit('(POCKET1)');
+    var PF = 1200, PR = 400, hr = 1.5;
+    var depths = [-2, -4, -6];
+    g1(cx + hr, cy, undefined, PF);
+    g1(undefined, undefined, RETRACT);
+    for (var d = 0; d < depths.length; d++) {
+      var zStart = d === 0 ? 1 : depths[d - 1] + 1;
+      g1(undefined, undefined, zStart);
+      var z = zStart;
+      while (z - 1 > depths[d] + 1e-9) { z -= 1; arc('G3', undefined, undefined, z, -hr, 0, PR); }
+      arc('G3', undefined, undefined, depths[d], -hr, 0, PR);
+      arc('G3', undefined, undefined, undefined, -hr, 0);
+      g1(cx - 13, cy, undefined, PF);
+      g1(cx + 13, cy);
+      for (var k = 4; k >= 0; k--) {
+        var hw = 25 - 2.4 * k, hh = 12 - 2.4 * k, r = Math.max(0, 3 - 2.4 * k);
+        pocketLoop(hw, hh, r);
+      }
+      g1(undefined, undefined, RETRACT);
+      if (d < depths.length - 1) g1(cx + hr, cy);
+    }
+    g1(undefined, undefined, CLEAR);
+
+    function pocketLoop(hw, hh, r) {
+      var x1 = cx + hw, x0 = cx - hw, y1 = cy + hh, y0 = cy - hh;
+      g1(x1, cy);
+      g1(x1, y1 - r);
+      if (r > 0) arc('G3', x1 - r, y1, undefined, -r, 0);
+      g1(x0 + r, y1);
+      if (r > 0) arc('G3', x0, y1 - r, undefined, 0, -r);
+      g1(x0, y0 + r);
+      if (r > 0) arc('G3', x0 + r, y0, undefined, r, 0);
+      g1(x1 - r, y0);
+      if (r > 0) arc('G3', x1, y0 + r, undefined, 0, r);
+      g1(x1, cy);
+    }
+
+    // Outside contour: arc lead-in and lead-out, three depths, tabs on the last pass
+    emit('');
+    emit('(CONTOUR1)');
+    var CF = 1000, CP = 300;
+    var chw = 58, chh = 38, cr = 9, lx = cx + chw + 3;
+    var cdepths = [-4, -8, -12.5];
+    g1(lx, cy + 3, undefined, CF);
+    g1(undefined, undefined, RETRACT);
+    for (var cd = 0; cd < cdepths.length; cd++) {
+      var zc = cdepths[cd], tabs = cd === cdepths.length - 1;
+      g1(undefined, undefined, FEEDH);
+      g1(undefined, undefined, zc, CP);
+      arc('G3', cx + chw, cy, undefined, 0, -3, CF);
+      contourLoop(chw, chh, cr, zc, tabs);
+      arc('G3', lx, cy - 3, undefined, 3, 0);
+      g1(undefined, undefined, RETRACT);
+      if (cd < cdepths.length - 1) g1(lx, cy + 3);
+    }
+    g1(undefined, undefined, CLEAR);
+
+    function contourLoop(hw, hh, r, zc, tabs) {
+      var x1 = cx + hw, x0 = cx - hw, y1 = cy + hh, y0 = cy - hh, zt = zc + 2;
+      g1(x1, y0 + r);
+      arc('G2', x1 - r, y0, undefined, -r, 0);
+      if (tabs) { g1(cx + 14, y0); g1(undefined, undefined, zt); g1(cx + 4, y0); g1(undefined, undefined, zc); }
+      g1(x0 + r, y0);
+      arc('G2', x0, y0 + r, undefined, 0, r);
+      g1(x0, y1 - r);
+      arc('G2', x0 + r, y1, undefined, r, 0);
+      if (tabs) { g1(cx - 14, y1); g1(undefined, undefined, zt); g1(cx - 4, y1); g1(undefined, undefined, zc); }
+      g1(x1 - r, y1);
+      arc('G2', x1, y1 - r, undefined, 0, -r);
+      g1(x1, cy);
+    }
+
+    // Peck drilling written out as G1 moves (no canned cycle)
+    emit('');
+    emit('(DRILL1)');
+    var DF = 250, Q = 4, bottom = -12.5;
+    var holes = [[15, 15], [105, 15], [105, 65], [15, 65]];
+    for (var h = 0; h < holes.length; h++) {
+      g1(holes[h][0], holes[h][1], undefined, DF);
+      if (h === 0) g1(undefined, undefined, RETRACT);
+      var cur = 0, first = true;
+      while (cur > bottom + 1e-9) {
+        var next = Math.max(cur - Q, bottom);
+        if (!first) g1(undefined, undefined, cur + 0.5);
+        g1(undefined, undefined, next);
+        g1(undefined, undefined, RETRACT);
+        cur = next; first = false;
+      }
+    }
+    g1(undefined, undefined, CLEAR);
+
+    emit('');
+    emit('M5');
+    emit('G28 G91 Z0');
+    emit('G90');
+    emit('M30');
+    emit('%');
+    return out.join('\n') + '\n';
+  }
+
+  return { name: 'demo-plate.nc', make: makeSample };
+}));
+
+/*!
+ * FeedFix backplot: WebGL line renderer with orbit, pan, zoom and picking.
+ * Z is up. Orthographic camera, so the top view reads true dimensions.
+ */
+(function (root) {
+  'use strict';
+
+  var PATH_VS = [
+    'attribute vec3 aPos;',
+    'attribute float aIdx;',
+    'attribute float aCls;',
+    'attribute float aDist;',
+    'uniform mat4 uMVP;',
+    'uniform float uCut;',
+    'uniform float uDone;',
+    'uniform vec3 uCol0; uniform vec3 uCol1; uniform vec3 uCol2; uniform vec3 uCol3; uniform vec3 uCol4;',
+    'uniform vec4 uVis0; uniform float uVis4;',
+    'varying vec3 vCol;',
+    'varying float vDist;',
+    'varying float vDash;',
+    'void main() {',
+    '  float c = floor(aCls + 0.5);',
+    '  vec3 col = uCol4; float vis = uVis4;',
+    '  if (c < 0.5) { col = uCol0; vis = uVis0.x; }',
+    '  else if (c < 1.5) { col = uCol1; vis = uVis0.y; }',
+    '  else if (c < 2.5) { col = uCol2; vis = uVis0.z; }',
+    '  else if (c < 3.5) { col = uCol3; vis = uVis0.w; }',
+    '  float done = aIdx < uCut ? 1.0 : 0.0;',
+    '  float keep = vis * (uDone > 0.5 ? done : 1.0 - done);',
+    '  vCol = col; vDist = aDist; vDash = c < 0.5 ? 1.0 : 0.0;',
+    '  gl_Position = keep > 0.5 ? uMVP * vec4(aPos, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);',
+    '}'
+  ].join('\n');
+
+  var PATH_FS = [
+    '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+    'precision highp float;',
+    '#else',
+    'precision mediump float;',
+    '#endif',
+    'uniform float uAlpha;',
+    'uniform float uDashK;',
+    'varying vec3 vCol;',
+    'varying float vDist;',
+    'varying float vDash;',
+    'void main() {',
+    '  if (vDash > 0.5 && fract(vDist * uDashK) > 0.55) discard;',
+    '  gl_FragColor = vec4(vCol, uAlpha);',
+    '}'
+  ].join('\n');
+
+  var FLAT_VS = [
+    'attribute vec3 aPos;',
+    'uniform mat4 uMVP;',
+    'uniform float uPt;',
+    'void main() { gl_Position = uMVP * vec4(aPos, 1.0); gl_PointSize = uPt; }'
+  ].join('\n');
+
+  var FLAT_FS = [
+    'precision mediump float;',
+    'uniform vec4 uColor;',
+    'void main() { gl_FragColor = uColor; }'
+  ].join('\n');
+
+  var IDENT = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
+  function shader(gl, type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+
+  function program(gl, vs, fs, attribs, uniforms) {
+    var p = gl.createProgram();
+    gl.attachShader(p, shader(gl, gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, shader(gl, gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    var o = { p: p, a: {}, u: {} };
+    attribs.forEach(function (n) { o.a[n] = gl.getAttribLocation(p, n); });
+    uniforms.forEach(function (n) { o.u[n] = gl.getUniformLocation(p, n); });
+    return o;
+  }
+
+  function niceStep(span) {
+    var raw = span / 8, pow = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    var m = raw / pow;
+    return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * pow;
+  }
+
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  function Backplot(canvas, opts) {
+    opts = opts || {};
+    this.canvas = canvas;
+    this.labels = opts.labels || null;
+    this.onPick = opts.onPick || null;
+    this.ok = false;
+    var gl = null;
+    try {
+      gl = canvas.getContext('webgl', { antialias: true, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: false }) ||
+        canvas.getContext('experimental-webgl');
+    } catch (e) { gl = null; }
+    if (!gl) return;
+    this.gl = gl;
+    try {
+      this.pp = program(gl, PATH_VS, PATH_FS, ['aPos', 'aIdx', 'aCls', 'aDist'],
+        ['uMVP', 'uCut', 'uDone', 'uCol0', 'uCol1', 'uCol2', 'uCol3', 'uCol4', 'uVis0', 'uVis4', 'uAlpha', 'uDashK']);
+      this.fp = program(gl, FLAT_VS, FLAT_FS, ['aPos'], ['uMVP', 'uPt', 'uColor']);
+    } catch (e) {
+      if (root.console) root.console.error(e);
+      return;
+    }
+    this.ok = true;
+    this.bPos = gl.createBuffer(); this.bIdx = gl.createBuffer();
+    this.bCls = gl.createBuffer(); this.bDist = gl.createBuffer();
+    this.bGrid = gl.createBuffer(); this.bAxes = gl.createBuffer(); this.bTmp = gl.createBuffer();
+    this.segCount = 0; this.gridMinor = 0; this.gridMajor = 0;
+    this.origin = [0, 0, 0];
+    this.box = { minX: -50, minY: -50, minZ: -10, maxX: 50, maxY: 50, maxZ: 10 };
+    this.gridExt = [-50, -50, 50, 50];
+    this.cam = { yaw: -Math.PI / 4, pitch: Math.atan(1 / Math.SQRT2), zoom: 60, t: [0, 0, 0] };
+    this.vis = [1, 1, 1, 1, 1];
+    this.cut = Infinity;
+    this.tool = null;
+    this.trail = null;
+    this.safeZ = null;
+    this.showSafe = true;
+    this.theme = {
+      bg: [0.95, 0.96, 0.97], grid: [0.85, 0.87, 0.89], gridMajor: [0.74, 0.78, 0.8],
+      paths: [[0.5, 0.54, 0.58], [0.91, 0.35, 0.05], [0.18, 0.62, 0.36], [0.76, 0.09, 0.36], [0.11, 0.39, 0.79]],
+      hl: [0.07, 0.07, 0.07], tool: [0.85, 0.28, 0.06], safe: [0.91, 0.35, 0.05],
+      ax: [[0.85, 0.2, 0.2], [0.2, 0.65, 0.3], [0.2, 0.4, 0.9]]
+    };
+    this._pending = false;
+    this._events();
+    var self = this;
+    if (root.ResizeObserver) {
+      this._ro = new root.ResizeObserver(function () { self.requestRender(); });
+      this._ro.observe(canvas);
+    } else {
+      root.addEventListener('resize', function () { self.requestRender(); });
+    }
+    canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); self.ok = false; });
+  }
+
+  Backplot.prototype.setTheme = function (theme) {
+    for (var k in theme) this.theme[k] = theme[k];
+    this.requestRender();
+  };
+
+  // segs: output of GCodeCore.buildSegments. box: program bounding box.
+  Backplot.prototype.setProgram = function (segs, box) {
+    if (!this.ok) return;
+    var gl = this.gl;
+    this.segs = segs;
+    this.segCount = segs.count;
+    this.origin = segs.origin;
+    this.box = box;
+    var nv = segs.count * 2;
+    var idx = new Float32Array(nv);
+    for (var s = 0; s < segs.count; s++) { idx[2 * s] = segs.move[s]; idx[2 * s + 1] = segs.move[s]; }
+    this.clsArr = new Uint8Array(nv);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bPos); gl.bufferData(gl.ARRAY_BUFFER, segs.pos, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bIdx); gl.bufferData(gl.ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bDist); gl.bufferData(gl.ARRAY_BUFFER, segs.dist, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bCls); gl.bufferData(gl.ARRAY_BUFFER, this.clsArr, gl.DYNAMIC_DRAW);
+    this._buildGrid();
+    this.cut = Infinity;
+    this.tool = null; this.trail = null;
+    this.requestRender();
+  };
+
+  Backplot.prototype.setClasses = function (cls) {
+    if (!this.ok || !this.segs) return;
+    var mv = this.segs.move, a = this.clsArr;
+    for (var s = 0; s < this.segCount; s++) { var c = cls[mv[s]]; a[2 * s] = c; a[2 * s + 1] = c; }
+    var gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bCls);
+    gl.bufferData(gl.ARRAY_BUFFER, a, gl.DYNAMIC_DRAW);
+    this.requestRender();
+  };
+
+  Backplot.prototype.setVisible = function (i, on) { this.vis[i] = on ? 1 : 0; this.requestRender(); };
+  Backplot.prototype.setSafeZ = function (z, show) { this.safeZ = z; this.showSafe = show !== false; this.requestRender(); };
+
+  // cut: moves with index < cut are drawn solid, the rest faint.
+  // tool: [x,y,z] world position or null. trail: world points of the current move.
+  Backplot.prototype.setProgress = function (cut, tool, trail) {
+    this.cut = cut; this.tool = tool; this.trail = trail;
+    this.requestRender();
+  };
+
+  Backplot.prototype._buildGrid = function () {
+    var gl = this.gl, b = this.box, o = this.origin;
+    var span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 1);
+    var step = niceStep(span);
+    var x0 = Math.floor(Math.min(b.minX, 0) / step - 1) * step, x1 = Math.ceil(Math.max(b.maxX, 0) / step + 1) * step;
+    var y0 = Math.floor(Math.min(b.minY, 0) / step - 1) * step, y1 = Math.ceil(Math.max(b.maxY, 0) / step + 1) * step;
+    this.gridExt = [x0, y0, x1, y1];
+    this.step = step;
+    var minor = [], major = [], v, list;
+    for (v = x0; v <= x1 + step * 0.5; v += step) {
+      list = Math.abs(Math.round(v / step) % 5) === 0 ? major : minor;
+      list.push(v - o[0], y0 - o[1], -o[2], v - o[0], y1 - o[1], -o[2]);
+    }
+    for (v = y0; v <= y1 + step * 0.5; v += step) {
+      list = Math.abs(Math.round(v / step) % 5) === 0 ? major : minor;
+      list.push(x0 - o[0], v - o[1], -o[2], x1 - o[0], v - o[1], -o[2]);
+    }
+    this.gridMinor = minor.length / 3;
+    this.gridMajor = major.length / 3;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bGrid);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(minor.concat(major)), gl.STATIC_DRAW);
+    var L = step * 1.5;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bAxes);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -o[0], -o[1], -o[2], L - o[0], -o[1], -o[2],
+      -o[0], -o[1], -o[2], -o[0], L - o[1], -o[2],
+      -o[0], -o[1], -o[2], -o[0], -o[1], L - o[2]
+    ]), gl.STATIC_DRAW);
+  };
+
+  Backplot.prototype._size = function () {
+    var c = this.canvas, dpr = Math.min(root.devicePixelRatio || 1, 2);
+    var w = Math.max(1, Math.round(c.clientWidth * dpr)), h = Math.max(1, Math.round(c.clientHeight * dpr));
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    this.dpr = dpr;
+    return [w, h];
+  };
+
+  Backplot.prototype._basis = function () {
+    var cy = Math.cos(this.cam.yaw), sy = Math.sin(this.cam.yaw);
+    var cp = Math.cos(this.cam.pitch), sp = Math.sin(this.cam.pitch);
+    var d = [cp * cy, cp * sy, sp], r = [-sy, cy, 0];
+    var u = [d[1] * r[2] - d[2] * r[1], d[2] * r[0] - d[0] * r[2], d[0] * r[1] - d[1] * r[0]];
+    return { d: d, r: r, u: u };
+  };
+
+  // World -> clip matrix (column major) for positions relative to this.origin.
+  Backplot.prototype._mvp = function (w, h) {
+    var B = this._basis(), hh = this.cam.zoom, hw = hh * w / h, o = this.origin;
+    var t = [this.cam.t[0] - o[0], this.cam.t[1] - o[1], this.cam.t[2] - o[2]];
+    var b = this.box;
+    var D = Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ, 1) * 50;
+    var r = B.r, u = B.u, d = B.d;
+    var rt = r[0] * t[0] + r[1] * t[1] + r[2] * t[2];
+    var ut = u[0] * t[0] + u[1] * t[1] + u[2] * t[2];
+    var dt = d[0] * t[0] + d[1] * t[1] + d[2] * t[2];
+    return new Float32Array([
+      r[0] / hw, u[0] / hh, d[0] / D, 0,
+      r[1] / hw, u[1] / hh, d[1] / D, 0,
+      r[2] / hw, u[2] / hh, d[2] / D, 0,
+      -rt / hw, -ut / hh, -dt / D, 1
+    ]);
+  };
+
+  Backplot.prototype.requestRender = function () {
+    if (this._pending || !this.ok) return;
+    this._pending = true;
+    var self = this;
+    (root.requestAnimationFrame || setTimeout)(function () { self._pending = false; self.render(); });
+  };
+
+  Backplot.prototype._flat = function (mvp, data, mode, count, color, alpha, pt) {
+    var gl = this.gl, f = this.fp;
+    gl.useProgram(f.p);
+    gl.uniformMatrix4fv(f.u.uMVP, false, mvp);
+    gl.uniform4f(f.u.uColor, color[0], color[1], color[2], alpha);
+    gl.uniform1f(f.u.uPt, pt || 1);
+    if (data) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.bTmp);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STREAM_DRAW);
+    }
+    gl.enableVertexAttribArray(f.a.aPos);
+    gl.vertexAttribPointer(f.a.aPos, 3, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(mode, 0, count);
+  };
+
+  Backplot.prototype.render = function () {
+    if (!this.ok) return;
+    var gl = this.gl, sz = this._size(), w = sz[0], h = sz[1], th = this.theme;
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(th.bg[0], th.bg[1], th.bg[2], 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    var mvp = this._mvp(w, h), f = this.fp, o = this.origin;
+
+    // Grid on Z0
+    gl.useProgram(f.p);
+    gl.uniformMatrix4fv(f.u.uMVP, false, mvp);
+    gl.uniform1f(f.u.uPt, 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bGrid);
+    gl.enableVertexAttribArray(f.a.aPos);
+    gl.vertexAttribPointer(f.a.aPos, 3, gl.FLOAT, false, 0, 0);
+    gl.uniform4f(f.u.uColor, th.grid[0], th.grid[1], th.grid[2], 1);
+    gl.drawArrays(gl.LINES, 0, this.gridMinor);
+    gl.uniform4f(f.u.uColor, th.gridMajor[0], th.gridMajor[1], th.gridMajor[2], 1);
+    gl.drawArrays(gl.LINES, this.gridMinor, this.gridMajor);
+
+    // Safe height plane
+    if (this.safeZ !== null && this.safeZ === this.safeZ && this.showSafe) {
+      var e = this.gridExt, z = this.safeZ - o[2];
+      var x0 = e[0] - o[0], y0 = e[1] - o[1], x1 = e[2] - o[0], y1 = e[3] - o[1];
+      this._flat(mvp, new Float32Array([x0, y0, z, x1, y0, z, x1, y1, z, x0, y0, z, x1, y1, z, x0, y1, z]), gl.TRIANGLES, 6, th.safe, 0.07);
+      this._flat(mvp, new Float32Array([x0, y0, z, x1, y0, z, x1, y1, z, x0, y1, z]), gl.LINE_LOOP, 4, th.safe, 0.55);
+    }
+
+    // Toolpath: remaining moves faint, completed moves solid
+    if (this.segCount) {
+      var p = this.pp;
+      gl.useProgram(p.p);
+      gl.uniformMatrix4fv(p.u.uMVP, false, mvp);
+      gl.uniform1f(p.u.uCut, this.cut === Infinity ? 3.0e38 : this.cut);
+      var P = th.paths;
+      gl.uniform3fv(p.u.uCol0, P[0]); gl.uniform3fv(p.u.uCol1, P[1]); gl.uniform3fv(p.u.uCol2, P[2]);
+      gl.uniform3fv(p.u.uCol3, P[3]); gl.uniform3fv(p.u.uCol4, P[4]);
+      gl.uniform4f(p.u.uVis0, this.vis[0], this.vis[1], this.vis[2], this.vis[3]);
+      gl.uniform1f(p.u.uVis4, this.vis[4]);
+      var pxPerUnit = h / (2 * this.cam.zoom);
+      gl.uniform1f(p.u.uDashK, pxPerUnit / (9 * this.dpr));
+      bind(gl, this.bPos, p.a.aPos, 3, gl.FLOAT);
+      bind(gl, this.bIdx, p.a.aIdx, 1, gl.FLOAT);
+      bind(gl, this.bCls, p.a.aCls, 1, gl.UNSIGNED_BYTE);
+      bind(gl, this.bDist, p.a.aDist, 1, gl.FLOAT);
+      if (this.cut !== Infinity) {
+        gl.uniform1f(p.u.uDone, 0);
+        gl.uniform1f(p.u.uAlpha, 0.2);
+        gl.drawArrays(gl.LINES, 0, this.segCount * 2);
+      }
+      gl.uniform1f(p.u.uDone, 1);
+      gl.uniform1f(p.u.uAlpha, 1);
+      gl.drawArrays(gl.LINES, 0, this.segCount * 2);
+      for (var ai = 1; ai < 4; ai++) gl.disableVertexAttribArray(p.a[['aPos', 'aIdx', 'aCls', 'aDist'][ai]]);
+    }
+
+    gl.useProgram(f.p);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bAxes);
+    gl.enableVertexAttribArray(f.a.aPos);
+    gl.vertexAttribPointer(f.a.aPos, 3, gl.FLOAT, false, 0, 0);
+    gl.uniformMatrix4fv(f.u.uMVP, false, mvp);
+    for (var k = 0; k < 3; k++) {
+      gl.uniform4f(f.u.uColor, th.ax[k][0], th.ax[k][1], th.ax[k][2], 0.9);
+      gl.drawArrays(gl.LINES, k * 2, 2);
+    }
+
+    // Current move, drawn thick on top, and the tool
+    var px = 2 / w, py = 2 / h, dpr = this.dpr;
+    if (this.trail && this.trail.length > 1) {
+      var ndc = this.trail.map(function (q) { return project(mvp, q[0] - o[0], q[1] - o[1], q[2] - o[2]); });
+      this._flat(IDENT, thickLine(ndc, 2.2 * dpr, px, py), gl.TRIANGLES, (ndc.length - 1) * 6, th.hl, 0.95);
+    }
+    if (this.tool) {
+      var tip = project(mvp, this.tool[0] - o[0], this.tool[1] - o[1], this.tool[2] - o[2]);
+      var up = project(mvp, this.tool[0] - o[0], this.tool[1] - o[1], this.tool[2] - o[2] + this.cam.zoom * 0.22);
+      this._flat(IDENT, thickLine([tip, up], 5 * dpr, px, py), gl.TRIANGLES, 6, th.tool, 0.85);
+      this._flat(IDENT, disc(tip, 6.5 * dpr, px, py), gl.TRIANGLES, 48, th.bg, 1);
+      this._flat(IDENT, disc(tip, 4.5 * dpr, px, py), gl.TRIANGLES, 48, th.tool, 1);
+    }
+
+    // Orientation triad, bottom left
+    var B = this._basis(), cxp = -1 + 44 * dpr * px, cyp = -1 + 44 * dpr * py, len = 26 * dpr;
+    var dirs = [[B.r[0], B.u[0]], [B.r[1], B.u[1]], [B.r[2], B.u[2]]];
+    for (var a = 0; a < 3; a++) {
+      var tipx = cxp + dirs[a][0] * len * px, tipy = cyp + dirs[a][1] * len * py;
+      this._flat(IDENT, thickLine([[cxp, cyp], [tipx, tipy]], 2 * dpr, px, py), gl.TRIANGLES, 6, th.ax[a], 1);
+      if (this.labels) {
+        var el = this.labels[a];
+        el.style.transform = 'translate(' + ((tipx + 1) / 2 * w / dpr + dirs[a][0] * 9 - 5).toFixed(1) + 'px,' +
+          ((1 - tipy) / 2 * h / dpr - dirs[a][1] * 9 - 8).toFixed(1) + 'px)';
+      }
+    }
+  };
+
+  function bind(gl, buf, loc, size, type) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, size, type, false, 0, 0);
+  }
+
+  function project(m, x, y, z) {
+    return [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13]];
+  }
+
+  // Screen-space quads for a polyline of NDC points, width in device pixels.
+  function thickLine(pts, width, px, py) {
+    var out = new Float32Array((pts.length - 1) * 18), w = 0;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i + 1];
+      var dx = (b[0] - a[0]) / px, dy = (b[1] - a[1]) / py, l = Math.sqrt(dx * dx + dy * dy) || 1;
+      var nx = -dy / l * width / 2 * px, ny = dx / l * width / 2 * py;
+      var q = [a[0] + nx, a[1] + ny, a[0] - nx, a[1] - ny, b[0] + nx, b[1] + ny, b[0] - nx, b[1] - ny];
+      var order = [0, 1, 2, 2, 1, 3];
+      for (var k = 0; k < 6; k++) { out[w++] = q[order[k] * 2]; out[w++] = q[order[k] * 2 + 1]; out[w++] = 0; }
+    }
+    return out;
+  }
+
+  function disc(c, r, px, py) {
+    var out = new Float32Array(48 * 3), w = 0;
+    for (var i = 0; i < 16; i++) {
+      var a0 = i / 16 * Math.PI * 2, a1 = (i + 1) / 16 * Math.PI * 2;
+      out[w++] = c[0]; out[w++] = c[1]; out[w++] = 0;
+      out[w++] = c[0] + Math.cos(a0) * r * px; out[w++] = c[1] + Math.sin(a0) * r * py; out[w++] = 0;
+      out[w++] = c[0] + Math.cos(a1) * r * px; out[w++] = c[1] + Math.sin(a1) * r * py; out[w++] = 0;
+    }
+    return out;
+  }
+
+  // ---- camera -------------------------------------------------------------
+
+  Backplot.prototype.view = function (name) {
+    var v = {
+      top: [-Math.PI / 2, Math.PI / 2], front: [-Math.PI / 2, 0], right: [0, 0],
+      iso: [-Math.PI / 4, Math.atan(1 / Math.SQRT2)]
+    }[name];
+    if (!v) return;
+    this.cam.yaw = v[0]; this.cam.pitch = v[1];
+    this.fit();
+  };
+
+  Backplot.prototype.fit = function () {
+    var b = this.box, B = this._basis(), c = this.canvas;
+    var t = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2];
+    var er = 0, eu = 0;
+    for (var i = 0; i < 8; i++) {
+      var p = [i & 1 ? b.maxX : b.minX, i & 2 ? b.maxY : b.minY, i & 4 ? b.maxZ : b.minZ];
+      var q = [p[0] - t[0], p[1] - t[1], p[2] - t[2]];
+      er = Math.max(er, Math.abs(B.r[0] * q[0] + B.r[1] * q[1] + B.r[2] * q[2]));
+      eu = Math.max(eu, Math.abs(B.u[0] * q[0] + B.u[1] * q[1] + B.u[2] * q[2]));
+    }
+    var aspect = Math.max(c.clientWidth, 1) / Math.max(c.clientHeight, 1);
+    this.cam.t = t;
+    this.cam.zoom = Math.max(eu, er / aspect, 0.5) * 1.15;
+    this.requestRender();
+  };
+
+  Backplot.prototype._pan = function (dx, dy) {
+    var B = this._basis(), wpp = 2 * this.cam.zoom / Math.max(this.canvas.clientHeight, 1), t = this.cam.t;
+    for (var k = 0; k < 3; k++) t[k] += -B.r[k] * dx * wpp + B.u[k] * dy * wpp;
+  };
+
+  Backplot.prototype._zoomAt = function (cssX, cssY, factor) {
+    var c = this.canvas, w = Math.max(c.clientWidth, 1), h = Math.max(c.clientHeight, 1);
+    var b = this.box, span = Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ, 1);
+    var nz = clamp(this.cam.zoom * factor, span * 1e-4, span * 20);
+    var nx = cssX / w * 2 - 1, ny = 1 - cssY / h * 2, a = w / h;
+    var B = this._basis(), dz = this.cam.zoom - nz, t = this.cam.t;
+    for (var k = 0; k < 3; k++) t[k] += B.r[k] * nx * dz * a + B.u[k] * ny * dz;
+    this.cam.zoom = nz;
+    this.requestRender();
+  };
+
+  // Nearest drawn segment to a point in CSS pixels. Returns a move index or -1.
+  Backplot.prototype.pick = function (cssX, cssY) {
+    if (!this.segs || !this.ok) return -1;
+    var c = this.canvas, w = Math.max(c.clientWidth, 1), h = Math.max(c.clientHeight, 1);
+    var m = this._mvp(w, h), pos = this.segs.pos, cls = this.clsArr, vis = this.vis;
+    var best = -1, bestD = 100;
+    for (var s = 0; s < this.segCount; s++) {
+      if (!vis[cls[2 * s]]) continue;
+      var j = s * 6;
+      var ax = (m[0] * pos[j] + m[4] * pos[j + 1] + m[8] * pos[j + 2] + m[12] + 1) * 0.5 * w;
+      var ay = (1 - (m[1] * pos[j] + m[5] * pos[j + 1] + m[9] * pos[j + 2] + m[13])) * 0.5 * h;
+      var bx = (m[0] * pos[j + 3] + m[4] * pos[j + 4] + m[8] * pos[j + 5] + m[12] + 1) * 0.5 * w;
+      var by = (1 - (m[1] * pos[j + 3] + m[5] * pos[j + 4] + m[9] * pos[j + 5] + m[13])) * 0.5 * h;
+      var vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+      var t = l2 > 0 ? clamp(((cssX - ax) * vx + (cssY - ay) * vy) / l2, 0, 1) : 0;
+      var ex = ax + vx * t - cssX, ey = ay + vy * t - cssY, d = ex * ex + ey * ey;
+      if (d <= bestD) { bestD = d; best = s; }
+    }
+    return best < 0 ? -1 : this.segs.move[best];
+  };
+
+  Backplot.prototype._events = function () {
+    var self = this, c = this.canvas, pts = {}, drag = null;
+    function count() { return Object.keys(pts).length; }
+    function pinchState() {
+      var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]];
+      return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+    c.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    c.addEventListener('pointerdown', function (e) {
+      try { c.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (count() === 1) {
+        drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: Date.now(), moved: 0,
+          mode: (e.button === 1 || e.button === 2 || e.shiftKey || e.ctrlKey) ? 'pan' : 'orbit' };
+      } else if (count() === 2) {
+        drag = { mode: 'pinch', p: pinchState(), moved: 99 };
+      }
+    });
+    c.addEventListener('pointermove', function (e) {
+      if (!pts[e.pointerId] || !drag) return;
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (drag.mode === 'pinch') {
+        if (count() < 2) return;
+        var np = pinchState(), r = c.getBoundingClientRect();
+        self._pan(np.x - drag.p.x, np.y - drag.p.y);
+        self._zoomAt(np.x - r.left, np.y - r.top, drag.p.d / np.d);
+        drag.p = np;
+        return;
+      }
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      drag.moved += Math.abs(dx) + Math.abs(dy);
+      if (drag.mode === 'orbit') {
+        self.cam.yaw -= dx * 0.008;
+        self.cam.pitch = clamp(self.cam.pitch + dy * 0.008, -Math.PI / 2, Math.PI / 2);
+      } else {
+        self._pan(dx, dy);
+      }
+      self.requestRender();
+    });
+    function end(e) {
+      if (!pts[e.pointerId]) return;
+      delete pts[e.pointerId];
+      if (drag && drag.mode !== 'pinch' && drag.moved < 5 && Date.now() - drag.t < 600 && e.type === 'pointerup' && e.button === 0) {
+        var r = c.getBoundingClientRect();
+        var m = self.pick(e.clientX - r.left, e.clientY - r.top);
+        if (self.onPick) self.onPick(m);
+      }
+      if (count() === 1) {
+        var k = Object.keys(pts)[0];
+        drag = { x: pts[k].x, y: pts[k].y, t: 0, moved: 99, mode: 'orbit' };
+      } else if (count() === 0) drag = null;
+    }
+    c.addEventListener('pointerup', end);
+    c.addEventListener('pointercancel', end);
+    c.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = c.getBoundingClientRect();
+      var dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      self._zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(clamp(dy, -200, 200) * 0.0015));
+    }, { passive: false });
+    c.addEventListener('dblclick', function () { self.fit(); });
+  };
+
+  root.Backplot = Backplot;
+}(typeof self !== 'undefined' ? self : this));
+
+/*!
+ * FeedFix app: connects the parser, feed editor and backplot to the page.
+ */
+(function () {
+  'use strict';
+
+  var Core = window.GCodeCore, Sample = window.FeedFixSample, CLS = Core.CLS;
+  var CLASSES = [
+    { key: 'rapid', label: 'Rapid', title: 'G0 rapid moves' },
+    { key: 'air', label: 'Air move', title: 'Feed moves with nothing to cut: completely above the safe height, or dropping straight back to a depth the tool already reached at that spot' },
+    { key: 'retract', label: 'Retract', title: 'Straight-up feed moves from the cut to the safe height' },
+    { key: 'plunge', label: 'Plunge', title: 'Straight-down feed moves into material' },
+    { key: 'cut', label: 'Cut', title: 'All other feed moves' }
+  ];
+  var ROW_H = 22, MAX_SPACER = 8e6, SPEEDS = [1, 5, 20, 100, 500];
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function num(v) { return (Math.round(v * 10000) / 10000).toString(); }
+  function debounce(fn, ms) {
+    var t = 0;
+    return function () { clearTimeout(t); t = setTimeout(fn, ms); };
+  }
+
+  var S = {
+    name: '', bytes: null, P: null, segs: null, cls: null, sample: false,
+    safeZ: null, auto: null, incRetract: true, airFeed: 5000, maxRate: 5000, feedMap: {},
+    plan: null, tA: null, tB: null, cumB: null, sum: null, editAt: null,
+    curMove: -1, frac: 1, curLine: -1, playing: false, simT: 0, speed: 20,
+    decoder: null, verify: null, units: null
+  };
+
+  var viewer = new window.Backplot($('plot'), {
+    labels: [$('axX'), $('axY'), $('axZ')],
+    onPick: function (m) { if (m >= 0) jumpToMove(m); }
+  });
+  if (!viewer.ok) $('noGl').hidden = false;
+
+  // ---- settings remembered per unit system ---------------------------------
+
+  function loadSettings(inch) {
+    var d = inch ? { airFeed: 200, maxRate: 200 } : { airFeed: 5000, maxRate: 5000 };
+    try {
+      var s = JSON.parse(localStorage.getItem('feedfix.' + (inch ? 'in' : 'mm')) || 'null');
+      if (s && s.airFeed > 0) d.airFeed = s.airFeed;
+      if (s && s.maxRate > 0) d.maxRate = s.maxRate;
+    } catch (e) { /* storage unavailable */ }
+    return d;
+  }
+  function saveSettings() {
+    try {
+      localStorage.setItem('feedfix.' + (S.P && S.P.inch ? 'in' : 'mm'), JSON.stringify({ airFeed: S.airFeed, maxRate: S.maxRate }));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  // ---- theme ---------------------------------------------------------------
+
+  function parseColor(v) {
+    v = v.trim();
+    if (v.charAt(0) === '#') {
+      if (v.length === 4) v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+      var n = parseInt(v.slice(1, 7), 16);
+      return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+    }
+    var m = v.match(/[\d.]+/g) || [0, 0, 0];
+    return [m[0] / 255, m[1] / 255, m[2] / 255];
+  }
+  function applyTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    function c(name) { return parseColor(cs.getPropertyValue(name) || '#888'); }
+    viewer.setTheme({
+      bg: c('--vp-bg'), grid: c('--vp-grid'), gridMajor: c('--vp-grid-major'),
+      paths: [c('--p-rapid'), c('--p-air'), c('--p-retract'), c('--p-plunge'), c('--p-cut')],
+      hl: c('--p-hl'), tool: c('--accent'), safe: c('--p-air'),
+      ax: [c('--ax-x'), c('--ax-y'), c('--ax-z')]
+    });
+  }
+  applyTheme();
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', applyTheme);
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+  }
+
+  // ---- formatting ------------------------------------------------------------
+
+  function unitLen() { return S.P && S.P.inch ? 'in' : 'mm'; }
+  function fmtZ(v) { return v === null || v === undefined ? '—' : v.toFixed(S.P && S.P.inch ? 4 : 3); }
+  function fmtLen(v) {
+    if (S.P && S.P.inch) return (v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1)) + ' in';
+    return v >= 10000 ? (v / 1000).toFixed(2) + ' m' : Math.round(v).toLocaleString() + ' mm';
+  }
+  function fmtTime(min) {
+    if (!(min >= 0) || !isFinite(min)) return '—';
+    var s = Math.round(min * 60), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return h ? h + ':' + pad(m) + ':' + pad(s % 60) : m + ':' + pad(s % 60);
+  }
+  function feedUnit(mode, inch) {
+    if (mode === 93) return 'inverse time';
+    if (mode === 95) return inch ? 'in/rev' : 'mm/rev';
+    return inch ? 'in/min' : 'mm/min';
+  }
+
+  // ---- loading ---------------------------------------------------------------
+
+  function looksBinary(bytes) {
+    var n = Math.min(bytes.length, 8192), bad = 0;
+    for (var i = 0; i < n; i++) if (bytes[i] === 0) bad++;
+    return bad > n * 0.01;
+  }
+
+  function load(name, bytes, isSample) {
+    if (looksBinary(bytes)) { toast('That file is not plain-text G-code.', 'bad'); return; }
+    stop();
+    $('busy').hidden = false;
+    setTimeout(function () {
+      try {
+        var P = Core.parse(bytes);
+        S.P = P; S.bytes = P.bytes; S.name = name; S.sample = !!isSample;
+        S.curMove = -1; S.frac = 1; S.curLine = -1;
+        S.segs = Core.buildSegments(P);
+        S.auto = Core.detectSafeZ(P);
+        S.safeZ = S.auto.z;
+        S.feedMap = {};
+        S.cls = null;
+        var st = loadSettings(P.inch);
+        S.airFeed = st.airFeed; S.maxRate = st.maxRate;
+        try { new TextDecoder('utf-8', { fatal: true }).decode(P.bytes); S.decoder = new TextDecoder('utf-8'); }
+        catch (e) { S.decoder = new TextDecoder('windows-1252'); }
+        viewer.setProgram(S.segs, P.bbox);
+        $('fileName').textContent = name;
+        $('fileName').title = name;
+        $('sampleBadge').hidden = !isSample;
+        $('sampleBtn').hidden = !!isSample;
+        var u = unitLen();
+        $('safeUnit').textContent = u;
+        $('airUnit').textContent = u + '/min';
+        $('maxRateUnit').textContent = u + '/min';
+        $('airFeed').value = S.airFeed;
+        $('maxRate').value = S.maxRate;
+        $('safeZ').value = S.safeZ === null ? '' : fmtZ(S.safeZ);
+        $('incRetract').checked = S.incRetract;
+        $('scrub').max = P.moves.n;
+        $('codeBody').scrollTop = 0;
+        recompute(true);
+        buildFeedRows();
+        renderInfo();
+        setView('iso');
+        setPosition(P.moves.n - 1, 1, true);
+      } catch (err) {
+        if (window.console) console.error(err);
+        toast('Could not read this file: ' + err.message, 'bad');
+      }
+      $('busy').hidden = true;
+    }, 30);
+  }
+
+  function loadSample() {
+    load(Sample.name, new TextEncoder().encode(Sample.make()), true);
+  }
+
+  // ---- analysis --------------------------------------------------------------
+
+  function recompute(fresh) {
+    var P = S.P;
+    if (!P) return;
+    S.cls = Core.classify(P, S.safeZ, S.cls);
+    viewer.setClasses(S.cls);
+    viewer.setSafeZ(S.safeZ);
+    S.plan = Core.planEdits(P, S.cls, { airFeed: S.airFeed, includeRetracts: S.incRetract, feedMap: S.feedMap });
+    S.tA = Core.moveTimes(P, null, S.maxRate);
+    S.tB = Core.moveTimes(P, S.plan.moveFeed, S.maxRate);
+    var n = P.moves.n, cum = new Float64Array(n + 1);
+    for (var i = 0; i < n; i++) cum[i + 1] = cum[i] + S.tB[i];
+    S.cumB = cum;
+    S.sum = Core.summarize(P, S.cls, S.tA, S.tB);
+    var at = new Int32Array(P.lineCount).fill(-1);
+    S.plan.edits.forEach(function (e, k) { at[e.line] = k; });
+    S.editAt = at;
+    S.verify = null;
+    renderLegend();
+    renderTimes();
+    renderAir();
+    if (!fresh) renderFeedUsage();
+    renderVerify();
+    renderCode();
+    renderDro();
+    verifySoon();
+  }
+
+  var verifySoon = debounce(function () {
+    if (!S.P) return;
+    var out = Core.buildOutput(S.bytes, S.plan.edits);
+    S.verify = Core.verify(S.P, out, S.plan);
+    renderVerify();
+  }, 350);
+
+  // ---- legend ----------------------------------------------------------------
+
+  var legendBuilt = false;
+  function renderLegend() {
+    var box = $('legend'), bc = S.sum.byClass;
+    if (!legendBuilt) {
+      box.innerHTML = CLASSES.map(function (c, i) {
+        return '<button type="button" class="lg on" data-cls="' + i + '" aria-pressed="true" title="' + esc(c.title) + '">' +
+          '<span class="sw sw-' + c.key + '"></span><span class="lg-name">' + c.label + '</span><span class="lg-n" id="lgn' + i + '"></span></button>';
+      }).join('');
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('.lg');
+        if (!b) return;
+        var i = +b.getAttribute('data-cls'), on = b.getAttribute('aria-pressed') !== 'true';
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.classList.toggle('on', on);
+        viewer.setVisible(i, on);
+      });
+      legendBuilt = true;
+    }
+    for (var i = 0; i < 5; i++) {
+      $('lgn' + i).textContent = bc[i].count.toLocaleString();
+      box.children[i].classList.toggle('empty', bc[i].count === 0);
+    }
+  }
+
+  // ---- cycle time ------------------------------------------------------------
+
+  function renderTimes() {
+    var sum = S.sum, a = sum.totalA, b = sum.totalB;
+    $('tOrig').textContent = fmtTime(a);
+    $('tNew').textContent = fmtTime(b);
+    var pct = a > 0 ? Math.round((1 - b / a) * 100) : 0;
+    var save = $('tSave');
+    save.textContent = pct > 0 ? '−' + pct + '%' : pct < 0 ? '+' + (-pct) + '%' : 'no change';
+    save.className = 'save' + (pct > 0 ? ' good' : pct < 0 ? ' worse' : '');
+    function stack(key) {
+      return sum.byClass.map(function (c, i) {
+        var w = a > 0 ? c[key] / a * 100 : 0;
+        if (w <= 0) return '';
+        return '<span class="st st-' + CLASSES[i].key + '" style="width:' + w.toFixed(3) + '%" title="' + CLASSES[i].label + ': ' + fmtTime(c[key]) + '"></span>';
+      }).join('');
+    }
+    $('barA').innerHTML = stack('tA');
+    $('barB').innerHTML = stack('tB');
+    $('barAT').textContent = fmtTime(a);
+    $('barBT').textContent = fmtTime(b);
+  }
+
+  // ---- air moves ---------------------------------------------------------------
+
+  function renderAir() {
+    var P = S.P, mv = P.moves, cls = S.cls, feeds = {}, count = 0, len = 0, arcs = 0;
+    for (var i = 0; i < mv.n; i++) {
+      if (!Core.isSpedUp(P, cls, i, S.incRetract) || (mv.flags[i] & Core.FLAG.SKIP)) continue;
+      count++; len += mv.len[i];
+      if (mv.arc[i] >= 0) arcs++;
+      var f = mv.feed[i];
+      if (f === f) feeds[f] = 1;
+    }
+    var list = Object.keys(feeds).map(Number).sort(function (x, y) { return x - y; });
+    $('airPill').textContent = count.toLocaleString() + (count === 1 ? ' move' : ' moves');
+    $('airCur').innerHTML = list.length ? list.slice(0, 6).map(function (v) { return '<span>F' + num(v) + '</span>'; }).join('') +
+      (list.length > 6 ? '<span>+' + (list.length - 6) + ' more</span>' : '') : '—';
+    $('airLen').textContent = count ? fmtLen(len) + ' of travel' : 'No air moves found';
+
+    var hint, a = S.auto;
+    if (a.z === null) hint = 'No safe height found automatically. Enter a height just above the top of your stock.';
+    else hint = 'Auto: Z ' + fmtZ(a.z) + (a.maxCutZ !== null ? ', the lowest approach height above the highest cutting move (Z ' + fmtZ(a.maxCutZ) + ').' : '.');
+    $('safeHint').textContent = hint;
+
+    var warn = [];
+    if (S.safeZ !== null && a.maxCutZ !== null && S.safeZ <= a.maxCutZ + 1e-9) {
+      warn.push('This is at or below the highest cutting move (Z ' + fmtZ(a.maxCutZ) + '). Cutting moves above it would be sped up.');
+    }
+    if (arcs) warn.push(arcs + (arcs === 1 ? ' arc is' : ' arcs are') + ' above the safe height and will be sped up. Make sure they are not cutting.');
+    var w = $('airWarn');
+    w.hidden = !warn.length;
+    w.textContent = warn.join(' ');
+    $('safeAuto').disabled = a.z === null || S.safeZ === a.z;
+  }
+
+  // ---- programmed feeds table -----------------------------------------------
+
+  var feedRows = [];
+  function buildFeedRows() {
+    feedRows = Core.feedTable(S.P, S.cls, S.tA);
+    var body = $('feedRows');
+    if (!feedRows.length) {
+      body.innerHTML = '<tr><td colspan="3" class="fine">No feed moves in this program.</td></tr>';
+      return;
+    }
+    body.innerHTML = feedRows.map(function (r, i) {
+      var locked = r.mode === 93;
+      return '<tr>' +
+        '<th scope="row"><span class="fv">F' + num(r.value) + '</span><span class="fu">' + feedUnit(r.mode, r.inch) + '</span></th>' +
+        '<td class="use" id="use' + i + '"></td>' +
+        '<td class="nf"><input type="number" min="0" step="any" inputmode="decimal" id="feedIn' + i + '" data-row="' + i + '"' +
+        ' placeholder="' + num(r.value) + '" aria-label="New feed for F' + num(r.value) + '"' + (locked ? ' disabled title="Inverse-time feeds are left as they are"' : '') + '></td>' +
+        '</tr>';
+    }).join('');
+    renderFeedUsage();
+  }
+
+  function renderFeedUsage() {
+    var rows = Core.feedTable(S.P, S.cls, S.tA);
+    rows.forEach(function (r, i) {
+      var cell = $('use' + i);
+      if (!cell) return;
+      var parts = [];
+      for (var c = 4; c >= 1; c--) {
+        if (!r.byClass[c]) continue;
+        parts.push('<span class="u"><span class="dot dot-' + CLASSES[c].key + '"></span>' + r.byClass[c] + ' ' + CLASSES[c].label.toLowerCase() + '</span>');
+      }
+      cell.innerHTML = '<span class="parts">' + (parts.join('') || '<span class="u">unused</span>') + '</span>' +
+        '<span class="fine">' + fmtLen(r.len) + ' · ' + fmtTime(r.time) + '</span>';
+    });
+  }
+
+  $('feedRows').addEventListener('input', debounce(function () {
+    var map = {};
+    feedRows.forEach(function (r, i) {
+      var el = $('feedIn' + i);
+      var v = el ? parseFloat(el.value) : NaN;
+      if (v > 0 && Math.abs(v - r.value) > 1e-9) map[r.key] = v;
+    });
+    S.feedMap = map;
+    recompute();
+  }, 250));
+
+  // ---- output check ------------------------------------------------------------
+
+  function renderVerify() {
+    var box = $('verify'), v = S.verify, edits = S.plan.edits;
+    var nIns = 0;
+    edits.forEach(function (e) { if (e.insert) nIns++; });
+    var lines = S.plan.edits.length;
+    $('changedCount').textContent = lines.toLocaleString() + (lines === 1 ? ' line changed' : ' lines changed');
+    $('changedCount').classList.toggle('none', lines === 0);
+    var name = outName(S.name);
+    $('downloadBtn').title = 'Download ' + name;
+    $('dlName').textContent = name;
+    if (!v) {
+      box.className = 'verify pending';
+      box.innerHTML = '<strong>Checking the edited file…</strong>';
+      return;
+    }
+    if (v.ok) {
+      box.className = 'verify ok';
+      box.innerHTML = '<strong>Toolpath verified identical</strong>' +
+        '<span>' + v.moves.toLocaleString() + ' moves re-read from the new file match the original exactly. ' +
+        (lines ? (lines - nIns) + (lines - nIns === 1 ? ' F value' : ' F values') + ' changed and ' + nIns + ' added, on ' +
+          v.changedLines.toLocaleString() + (v.changedLines === 1 ? ' line' : ' lines') + '. Every other byte is untouched.' :
+          'No feeds are changed yet.') + '</span>';
+    } else {
+      box.className = 'verify bad';
+      box.innerHTML = '<strong>Check failed. Download is blocked.</strong><span>The edited file did not re-read identically' +
+        (v.first && v.first.line >= 0 ? ' (line ' + (v.first.line + 1) + ')' : '') + '. Please report this file.</span>';
+    }
+  }
+
+  function outName(name) {
+    var m = /^(.*?)(\.[A-Za-z0-9]{1,6})?$/.exec(name || 'program.nc');
+    return (m[1] || 'program') + '_fast' + (m[2] || '.nc');
+  }
+
+  var dlCap = window.claude && typeof window.claude.use === 'function' ? window.claude.use('downloads') : null;
+  if (dlCap) dlCap.then(function (d) { if (d) $('previewNote').hidden = false; }, function () {});
+
+  function download() {
+    if (!S.P) return;
+    var out = Core.buildOutput(S.bytes, S.plan.edits);
+    S.verify = Core.verify(S.P, out, S.plan);
+    renderVerify();
+    if (!S.verify.ok) { toast('The edited file did not verify, so nothing was downloaded.', 'bad'); return; }
+    var name = outName(S.name);
+    var direct = function () {
+      var url = URL.createObjectURL(new Blob([out], { type: 'application/octet-stream' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      toast('Downloaded ' + name);
+    };
+    if (!dlCap) return direct();
+    dlCap.then(function (d) {
+      if (!d) return direct();
+      d.save({ filename: name + '.txt', data: new Blob([out], { type: 'text/plain' }) }).then(function () {
+        toast('Saved ' + name + '.txt. Rename it to ' + name + '.');
+      }, function (e) {
+        if (!e || e.code !== 'declined') toast('Download failed: ' + ((e && (e.message || e.code)) || 'unknown error'), 'bad');
+      });
+    }, direct);
+  }
+
+  // ---- program info ----------------------------------------------------------
+
+  function renderInfo() {
+    var P = S.P, b = P.bbox, u = unitLen();
+    function rng(a, c) { return fmtZ(a) + ' to ' + fmtZ(c) + ' <span class="fine">(' + fmtZ(c - a) + ')</span>'; }
+    var rows = [
+      ['File', esc(S.name) + ' <span class="fine">' + (P.bytes.length / 1024).toFixed(1) + ' KB</span>'],
+      ['Lines', P.lineCount.toLocaleString() + ' <span class="fine">' + P.moves.n.toLocaleString() + ' moves</span>'],
+      ['Units', P.inch ? 'Inch (G20)' : 'Millimetre (G21)'],
+      ['X', rng(b.minX, b.maxX)], ['Y', rng(b.minY, b.maxY)], ['Z', rng(b.minZ, b.maxZ)],
+      ['Tools', P.tools.length ? P.tools.map(function (t) { return 'T' + num(t.t); }).join(', ') : '—'],
+      ['Spindle', P.spindleMax ? 'up to S' + num(P.spindleMax) : '—']
+    ];
+    $('info').innerHTML = rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
+    $('info').setAttribute('data-units', u);
+    var notes = $('notes');
+    notes.innerHTML = P.warnings.map(function (w) {
+      return '<li><button type="button" class="linklike" data-line="' + w.line + '">Line ' + (w.line + 1) + '</button> ' + esc(w.text) +
+        (w.count > 1 ? ' <span class="fine">(' + w.count + ' lines)</span>' : '') + '</li>';
+    }).join('');
+    notes.hidden = !P.warnings.length;
+  }
+  $('notes').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-line]');
+    if (b) selectLine(+b.getAttribute('data-line'));
+  });
+
+  // ---- code panel -----------------------------------------------------------
+
+  var codeBody = $('codeBody'), codeRows = $('codeRows'), codeSpacer = $('codeSpacer');
+  var TOKEN = /(\([^)]*\)?|;.*$)|([A-Za-z])(\s*[-+]?(?:\d+\.?\d*|\.\d+))?/g;
+
+  function hl(s) {
+    var out = '', last = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(s))) {
+      out += esc(s.slice(last, m.index));
+      if (m[1]) out += '<span class="k-c">' + esc(m[1]) + '</span>';
+      else {
+        var L = m[2].toUpperCase();
+        var k = L === 'G' || L === 'M' ? 'g' : L === 'F' ? 'f' : 'XYZ'.indexOf(L) >= 0 ? 'a' : 'IJKR'.indexOf(L) >= 0 ? 'i' : L === 'N' || L === 'O' ? 'n' : 'o';
+        out += '<span class="k-' + k + '">' + esc(m[0]) + '</span>';
+      }
+      last = TOKEN.lastIndex;
+      if (!m[0].length) TOKEN.lastIndex++;
+    }
+    return out + esc(s.slice(last));
+  }
+
+  function dec(a, b) { return b > a ? S.decoder.decode(S.bytes.subarray(a, b)) : ''; }
+
+  function lineHtml(i) {
+    var P = S.P, a = P.lineStart[i], b = P.lineEnd[i], k = S.editAt[i];
+    if (k < 0) return hl(dec(a, b));
+    var e = S.plan.edits[k];
+    if (e.insert) return hl(dec(a, e.pos)) + '<ins class="fnew" title="Added. Was running at F' + num(e.from) + '">' + esc(e.text) + '</ins>' + hl(dec(e.pos, b));
+    var fl = P.lineF[i];
+    return hl(dec(a, fl)) + '<span class="fnew" title="Was F' + num(e.from) + '">' + esc(dec(fl, e.pos) + e.text) + '</span>' + hl(dec(e.end, b));
+  }
+
+  function codeWindow() {
+    var n = S.P.lineCount, vh = codeBody.clientHeight, total = n * ROW_H;
+    var spacer = Math.min(total, MAX_SPACER), st = codeBody.scrollTop, first, offset;
+    if (total <= MAX_SPACER) { first = Math.floor(st / ROW_H); offset = first * ROW_H; }
+    else {
+      var frac = st / Math.max(1, spacer - vh);
+      first = Math.floor(frac * Math.max(0, n - vh / ROW_H));
+      offset = st;
+    }
+    return { first: Math.max(0, first), offset: offset, count: Math.ceil(vh / ROW_H) + 2, spacer: spacer, total: total, vh: vh };
+  }
+
+  function renderCode() {
+    if (!S.P) return;
+    var w = codeWindow(), n = S.P.lineCount, html = '';
+    codeSpacer.style.height = w.spacer + 'px';
+    for (var i = w.first; i < Math.min(n, w.first + w.count); i++) {
+      var c = 'row' + (i === S.curLine ? ' cur' : '') + (S.editAt[i] >= 0 ? ' changed' : '');
+      html += '<div class="' + c + '" data-line="' + i + '"><span class="ln">' + (i + 1) + '</span><span class="tx">' + (lineHtml(i) || ' ') + '</span></div>';
+    }
+    codeRows.style.transform = 'translateY(' + w.offset + 'px)';
+    codeRows.innerHTML = html;
+    $('codeInfo').textContent = n.toLocaleString() + ' lines';
+  }
+
+  function scrollToLine(li, force) {
+    var n = S.P.lineCount, vh = codeBody.clientHeight, total = n * ROW_H;
+    if (total <= MAX_SPACER) {
+      var top = li * ROW_H;
+      if (!force && top >= codeBody.scrollTop && top + ROW_H <= codeBody.scrollTop + vh) return;
+      codeBody.scrollTop = Math.max(0, top - vh / 2 + ROW_H / 2);
+    } else {
+      codeBody.scrollTop = li / Math.max(1, n - vh / ROW_H) * (MAX_SPACER - vh);
+    }
+    renderCode();
+  }
+
+  var codeRaf = 0;
+  codeBody.addEventListener('scroll', function () {
+    if (codeRaf) return;
+    codeRaf = requestAnimationFrame(function () { codeRaf = 0; renderCode(); });
+  });
+  codeRows.addEventListener('click', function (e) {
+    var r = e.target.closest('.row');
+    if (r) selectLine(+r.getAttribute('data-line'), true);
+  });
+  codeBody.addEventListener('keydown', function (e) {
+    if (!S.P) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectLine(Math.max(0, Math.min(S.P.lineCount - 1, (S.curLine < 0 ? 0 : S.curLine) + (e.key === 'ArrowDown' ? 1 : -1))));
+    }
+  });
+
+  function jumpChange(dir) {
+    var edits = S.plan.edits;
+    if (!edits.length) return;
+    var cur = S.curLine, lo = 0, hi = edits.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (edits[mid].line <= cur) lo = mid + 1; else hi = mid; }
+    var k = dir > 0 ? lo : lo - 1;
+    if (dir < 0 && k >= 0 && edits[k].line === cur) k--;
+    if (k < 0) k = edits.length - 1;
+    if (k >= edits.length) k = 0;
+    selectLine(edits[k].line);
+  }
+  $('prevChange').addEventListener('click', function () { jumpChange(-1); });
+  $('nextChange').addEventListener('click', function () { jumpChange(1); });
+
+  // ---- position, DRO, playback --------------------------------------------------
+
+  function setPosition(m, frac, keepScroll) {
+    var P = S.P, n = P.moves.n;
+    S.curMove = m; S.frac = frac;
+    if (!n) { viewer.setProgress(Infinity, null, null); renderDro(); return; }
+    var tool, trail = null, cut;
+    if (m < 0) { cut = 0; tool = Core.pointAt(P, 0, 0); }
+    else {
+      cut = frac >= 1 ? m + 1 : m;
+      tool = Core.pointAt(P, m, frac);
+      if (!(P.moves.flags[m] & Core.FLAG.SKIP)) trail = Core.movePolyline(P, m, frac);
+    }
+    var atEnd = m >= n - 1 && frac >= 1;
+    viewer.setProgress(atEnd && !S.playing ? Infinity : cut, tool, trail);
+    $('scrub').value = frac >= 1 ? m + 1 : Math.max(0, m);
+    var line = m >= 0 ? P.moves.line[m] : (n ? P.moves.line[0] : -1);
+    if (line !== S.curLine) {
+      S.curLine = line;
+      if (!keepScroll && line >= 0) scrollToLine(line); else renderCode();
+    }
+    renderDro(tool);
+  }
+
+  function renderDro(tool) {
+    var P = S.P;
+    if (!P) return;
+    var mv = P.moves, m = Math.min(S.curMove, mv.n - 1);
+    tool = tool || (P.moves.n ? Core.pointAt(P, Math.max(0, m), m < 0 ? 0 : S.frac) : [0, 0, 0]);
+    $('droX').textContent = fmtZ(tool[0]);
+    $('droY').textContent = fmtZ(tool[1]);
+    $('droZ').textContent = fmtZ(tool[2]);
+    var fTxt = '—', feedCls = '';
+    if (m >= 0 && m < mv.n) {
+      if (mv.kind[m] === Core.KIND.RAPID) fTxt = 'Rapid';
+      else {
+        var f = S.plan.moveFeed[m];
+        fTxt = f === f ? num(f) : '—';
+        if (f === f && Math.abs(f - mv.feed[m]) > 1e-9) feedCls = 'changed';
+      }
+    }
+    $('droF').textContent = fTxt;
+    $('droF').className = feedCls;
+    $('droN').textContent = S.curLine >= 0 ? (S.curLine + 1).toLocaleString() : '—';
+    var el = m < 0 ? 0 : S.cumB[m] + S.tB[m] * Math.min(1, S.frac);
+    $('droT').textContent = fmtTime(el) + ' / ' + fmtTime(S.cumB[mv.n]);
+  }
+
+  function selectLine(li, keepScroll) {
+    var P = S.P;
+    if (!P) return;
+    stop();
+    li = Math.max(0, Math.min(P.lineCount - 1, li));
+    var m0 = P.lineMove[li], m1 = P.lineMove[li + 1];
+    S.curLine = li;
+    if (m1 > m0) setPosition(m1 - 1, 1, true);
+    else setPosition(m0 - 1, 1, true);
+    S.curLine = li;
+    if (!keepScroll) scrollToLine(li); else renderCode();
+    renderDro();
+  }
+
+  function jumpToMove(m) {
+    stop();
+    setPosition(m, 1, false);
+  }
+
+  $('scrub').addEventListener('input', function () {
+    stop();
+    var v = +this.value;
+    if (v <= 0) setPosition(-1, 1); else setPosition(v - 1, 1);
+  });
+
+  function upper(arr, t) {
+    var lo = 0, hi = arr.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (arr[mid] <= t) lo = mid + 1; else hi = mid; }
+    return lo;
+  }
+
+  var last = 0;
+  function tick(now) {
+    if (!S.playing) return;
+    var n = S.P.moves.n, dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    S.simT += dt / 60 * S.speed;
+    var total = S.cumB[n];
+    if (S.simT >= total) { stop(); setPosition(n - 1, 1); return; }
+    var m = Math.min(n - 1, Math.max(0, upper(S.cumB, S.simT) - 1));
+    var frac = S.tB[m] > 0 ? (S.simT - S.cumB[m]) / S.tB[m] : 1;
+    setPosition(m, Math.max(0, Math.min(1, frac)));
+    requestAnimationFrame(tick);
+  }
+
+  function play() {
+    if (!S.P || !S.P.moves.n) return;
+    if (S.playing) return stop();
+    var n = S.P.moves.n;
+    if (S.curMove >= n - 1 && S.frac >= 1) S.simT = 0;
+    else S.simT = S.curMove < 0 ? 0 : S.cumB[S.curMove] + S.tB[S.curMove] * Math.min(1, S.frac);
+    S.playing = true;
+    $('playBtn').classList.add('playing');
+    $('playBtn').setAttribute('aria-label', 'Pause simulation');
+    last = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (!S.playing) return;
+    S.playing = false;
+    $('playBtn').classList.remove('playing');
+    $('playBtn').setAttribute('aria-label', 'Play simulation');
+    if (S.P) setPosition(S.curMove, S.frac, true);
+  }
+
+  $('playBtn').addEventListener('click', play);
+  $('speedSel').innerHTML = SPEEDS.map(function (s) { return '<option value="' + s + '"' + (s === S.speed ? ' selected' : '') + '>' + s + '×</option>'; }).join('');
+  $('speedSel').addEventListener('change', function () { S.speed = +this.value; });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== ' ' || e.target.closest('input, select, textarea, button, [contenteditable]')) return;
+    e.preventDefault();
+    play();
+  });
+
+  // ---- view buttons ------------------------------------------------------------
+
+  function setView(v) {
+    if (v === 'fit') viewer.fit(); else viewer.view(v);
+    Array.prototype.forEach.call(document.querySelectorAll('.views button'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-view') === v ? 'true' : 'false');
+    });
+  }
+  document.querySelector('.views').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (b) setView(b.getAttribute('data-view'));
+  });
+  $('safeShow').addEventListener('change', function () { viewer.setSafeZ(S.safeZ, this.checked); });
+
+  // ---- inputs --------------------------------------------------------------------
+
+  $('safeZ').addEventListener('input', debounce(function () {
+    var v = parseFloat($('safeZ').value);
+    S.safeZ = v === v ? v : null;
+    recompute();
+  }, 250));
+  $('safeAuto').addEventListener('click', function () {
+    S.safeZ = S.auto.z;
+    $('safeZ').value = S.safeZ === null ? '' : fmtZ(S.safeZ);
+    recompute();
+  });
+  $('incRetract').addEventListener('change', function () { S.incRetract = this.checked; recompute(); });
+  $('airFeed').addEventListener('input', debounce(function () {
+    var v = parseFloat($('airFeed').value);
+    S.airFeed = v > 0 ? v : 0;
+    saveSettings();
+    recompute();
+  }, 250));
+  $('maxRate').addEventListener('input', debounce(function () {
+    var v = parseFloat($('maxRate').value);
+    S.maxRate = v > 0 ? v : 0;
+    saveSettings();
+    recompute();
+  }, 250));
+
+  // ---- files -------------------------------------------------------------------
+
+  function openFile(file) {
+    if (!file) return;
+    if (file.size > 300 * 1024 * 1024) { toast('That file is over 300 MB, which is too large to open here.', 'bad'); return; }
+    file.arrayBuffer().then(function (buf) { load(file.name, new Uint8Array(buf), false); },
+      function () { toast('Could not read that file.', 'bad'); });
+  }
+  $('openBtn').addEventListener('click', function () { $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function () { openFile(this.files[0]); this.value = ''; });
+  $('sampleBtn').addEventListener('click', loadSample);
+  $('downloadBtn').addEventListener('click', download);
+  $('downloadBtn2').addEventListener('click', download);
+
+  var dragDepth = 0;
+  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0; }
+  document.addEventListener('dragenter', function (e) { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('drop').hidden = false; });
+  document.addEventListener('dragover', function (e) { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('dragleave', function (e) { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $('drop').hidden = true; });
+  document.addEventListener('drop', function (e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0; $('drop').hidden = true;
+    openFile(e.dataTransfer.files[0]);
+  });
+
+  // ---- toast --------------------------------------------------------------------
+
+  var toastTimer = 0;
+  function toast(msg, kind) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (kind ? ' ' + kind : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast'; }, 4200);
+  }
+
+  // ---- help menu, how-it-works and reports ------------------------------------------
+
+  var APP_VERSION = '1.0.0';
+  var REPORT_URL = new URL('api/reports', location.href).toString();
+  var ATTACH_LIMIT = 512 * 1024;
+  var helpBtn = $('helpBtn'), helpMenu = $('helpMenu');
+
+  function menuItems() { return Array.prototype.slice.call(helpMenu.querySelectorAll('[role="menuitem"]')); }
+  function setMenu(open, focusFirst) {
+    helpMenu.hidden = !open;
+    helpBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open && focusFirst) menuItems()[0].focus();
+  }
+  helpBtn.addEventListener('click', function () { setMenu(helpMenu.hidden, false); });
+  helpBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setMenu(true, true); }
+  });
+  helpMenu.addEventListener('keydown', function (e) {
+    var items = menuItems(), i = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') { e.preventDefault(); setMenu(false); helpBtn.focus(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === 'Tab') setMenu(false);
+  });
+  document.addEventListener('click', function (e) {
+    if (!helpMenu.hidden && !e.target.closest('.menu-wrap')) setMenu(false);
+  });
+  helpMenu.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    setMenu(false);
+    var act = b.getAttribute('data-act');
+    if (act === 'how') openDialog($('howDlg'));
+    else openReport(act);
+  });
+
+  function openDialog(d) {
+    if (typeof d.showModal === 'function') d.showModal();
+    else d.setAttribute('open', '');
+  }
+  function closeDialog(d) {
+    if (typeof d.close === 'function') d.close();
+    else d.removeAttribute('open');
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.dlg'), function (d) {
+    d.addEventListener('click', function (e) {
+      if (e.target.closest('[data-close]') || e.target === d) closeDialog(d);
+    });
+  });
+
+  function reportKind() { return $('kindFeature').checked ? 'feature' : 'bug'; }
+
+  function syncReportKind() {
+    var bug = reportKind() === 'bug';
+    $('reportH').textContent = bug ? 'Report a bug' : 'Request a feature';
+    $('rDetailsLabel').textContent = bug ? 'What happened? What did you expect instead?' : 'What would you like FeedFix to do?';
+    $('rDetails').placeholder = bug ? 'Steps, the line number or the move that looks wrong, and what you expected.' : 'Describe the feature and how you would use it.';
+    $('rTitle').placeholder = bug ? 'e.g. Arcs in the contour are drawn the wrong way' : 'e.g. Show the stock outline';
+    $('rSend').textContent = bug ? 'Send bug report' : 'Send request';
+    var canAttach = bug && S.P && !S.sample;
+    $('rAttachRow').hidden = !canAttach;
+    if (canAttach) {
+      var big = S.bytes.length > ATTACH_LIMIT;
+      $('rAttach').disabled = big;
+      if (big) $('rAttach').checked = false;
+      $('rAttachInfo').textContent = '(' + S.name + ', ' + (S.bytes.length / 1024).toFixed(1) + ' KB' + (big ? ', too large to attach' : '') + ')';
+    }
+    $('rCtx').textContent = JSON.stringify(reportContext(), null, 2);
+  }
+  $('kindBug').addEventListener('change', syncReportKind);
+  $('kindFeature').addEventListener('change', syncReportKind);
+
+  function reportContext() {
+    var P = S.P, ctx = {
+      app: 'FeedFix ' + APP_VERSION,
+      page: location.origin + location.pathname,
+      browser: navigator.userAgent,
+      screen: window.innerWidth + 'x' + window.innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x',
+      webgl: !!viewer.ok
+    };
+    if (P) {
+      ctx.program = {
+        name: S.sample ? 'sample (' + S.name + ')' : S.name,
+        bytes: P.bytes.length, lines: P.lineCount, moves: P.moves.n,
+        units: P.inch ? 'inch' : 'mm',
+        notes: P.warnings.map(function (w) { return w.code + '@' + (w.line + 1); })
+      };
+      ctx.settings = {
+        safeZ: S.safeZ, autoSafeZ: S.auto ? S.auto.z : null, highestCutZ: S.auto ? S.auto.maxCutZ : null,
+        airFeed: S.airFeed, maxRate: S.maxRate, retracts: S.incRetract, feedChanges: S.feedMap
+      };
+      ctx.result = {
+        linesChanged: S.plan ? S.plan.edits.length : 0,
+        verified: S.verify ? S.verify.ok : null,
+        minutes: S.sum ? [Math.round(S.sum.totalA * 100) / 100, Math.round(S.sum.totalB * 100) / 100] : null,
+        line: S.curLine + 1
+      };
+    }
+    return ctx;
+  }
+
+  function openReport(kind) {
+    $('reportForm').reset();
+    (kind === 'feature' ? $('kindFeature') : $('kindBug')).checked = true;
+    $('reportForm').hidden = false;
+    $('reportDone').hidden = true;
+    $('rError').hidden = true;
+    $('rCopy').hidden = true;
+    $('rSend').disabled = false;
+    syncReportKind();
+    openDialog($('reportDlg'));
+    $('rTitle').focus();
+  }
+
+  function reportText() {
+    var lines = [
+      (reportKind() === 'bug' ? 'Bug: ' : 'Feature request: ') + $('rTitle').value.trim(),
+      '',
+      $('rDetails').value.trim()
+    ];
+    if ($('rContact').value.trim()) lines.push('', 'From: ' + $('rContact').value.trim());
+    lines.push('', JSON.stringify(reportContext(), null, 2));
+    return lines.join('\n');
+  }
+
+  function reportFailed(msg) {
+    $('rError').textContent = msg + ' You can copy the report and send it another way.';
+    $('rError').hidden = false;
+    $('rCopy').hidden = false;
+    $('rSend').disabled = false;
+    syncReportKind();
+  }
+
+  $('reportForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = $('rTitle').value.trim(), details = $('rDetails').value.trim();
+    if (!title || !details) {
+      $('rError').textContent = !title ? 'Add a short summary first.' : 'Add a few details first.';
+      $('rError').hidden = false;
+      (!title ? $('rTitle') : $('rDetails')).focus();
+      return;
+    }
+    var body = {
+      kind: reportKind(), title: title, details: details,
+      contact: $('rContact').value.trim(), website: $('rWebsite').value,
+      context: reportContext(), attachment: null
+    };
+    if (!$('rAttachRow').hidden && $('rAttach').checked) body.attachment = { name: S.name, text: S.decoder.decode(S.bytes) };
+    $('rError').hidden = true;
+    $('rSend').disabled = true;
+    $('rSend').textContent = 'Sending…';
+    fetch(REPORT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) { return { r: r, j: j }; });
+      })
+      .then(function (res) {
+        if (res.r.ok && res.j.ok) {
+          $('reportForm').hidden = true;
+          $('reportDone').hidden = false;
+          $('reportDoneText').textContent = (body.kind === 'bug' ? 'Bug report' : 'Feature request') +
+            (res.j.id ? ' #' + res.j.id : '') + ' is in the inbox. Thanks for helping make FeedFix better.';
+          $('reportDone').querySelector('[data-close]').focus();
+        } else {
+          reportFailed(res.j.error || 'The report inbox answered with an error (' + res.r.status + ').');
+        }
+      }, function () {
+        reportFailed('The report inbox could not be reached from this page.');
+      });
+  });
+
+  $('rCopy').addEventListener('click', function () {
+    var text = reportText();
+    var fallback = function () {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      $('reportForm').appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+      ta.remove();
+      toast(ok ? 'Report copied.' : 'Copy was blocked. Select the text in the details box and copy it by hand.', ok ? '' : 'bad');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast('Report copied.'); }, fallback);
+    } else fallback();
+  });
+
+  window.addEventListener('resize', debounce(renderCode, 100));
+  loadSample();
+}());
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  // Cloudflare Worker that serves FeedFix from ./public and stores
+  // bug reports / feature requests in D1. See README.md for setup.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "feedfix",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "feedfix-reports",
+      "database_id": "cda3b64a-469f-47d0-9263-599482c62cec"
+    }
+  ],
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "feedfix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based G-code backplot and feed editor that speeds up slow air moves without changing the toolpath.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "check": "node scripts/build.mjs --check",
+    "dev": "node scripts/dev.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
